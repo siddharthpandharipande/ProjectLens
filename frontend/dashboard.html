@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectLens Dashboard - Academic AI Suite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Dashboard Main Layout Wrapper -->
+  <div class="db-wrapper" id="dashboardWrapper">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="db-sidebar">
+      <div class="db-logo">
+        <div class="db-logo-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="20" height="20" rx="6" fill="#121318"/>
+            <circle cx="12" cy="12" r="5" fill="#3157D5"/>
+            <circle cx="12" cy="12" r="2" fill="#E9785B"/>
+          </svg>
+        </div>
+        <span>ProjectLens</span>
+      </div>
+
+      <ul class="db-menu-list">
+        <li class="db-menu-item-action" style="margin-bottom: 12px;">
+          <button id="newAnalysisBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Analysis
+          </button>
+        </li>
+
+        <li class="db-menu-header">Student Module</li>
+        <li class="db-menu-item active" data-view="overview">
+          <button>
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            Project Overview
+          </button>
+        </li>
+        <li class="db-menu-item" data-view="signals">
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5v14M22 9v6M7 8v8M2 10v4"/></svg>
+            AI Signals
+          </button>
+        </li>
+        <li class="db-menu-item" data-view="innovation">
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.25-2.5 3-2.5 4.5h20c0-1.5-1-3.25-2.5-4.5M12 2C8.5 2 6 5.5 6 9c0 2.5 1 4 2.5 5.5h7C17 13 18 11.5 18 9c0-3.5-2.5-7-6-7z"/></svg>
+            Innovation DNA
+          </button>
+        </li>
+        <li class="db-menu-item" data-view="viva">
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
+            Viva voce Q&A
+          </button>
+        </li>
+        <li class="db-menu-item" data-view="report">
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Final Evaluation
+          </button>
+        </li>
+
+        <li class="db-menu-header">Faculty Module</li>
+        <li class="db-menu-item" data-view="faculty">
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Faculty Dashboard
+          </button>
+        </li>
+
+        <li class="db-menu-header">Utilities</li>
+        <li class="db-menu-item" data-view="styleguide">
+          <button>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+            Style Guide
+          </button>
+        </li>
+      </ul>
+
+      <!-- Sidebar Footer -->
+      <div class="db-sidebar-footer">
+        <li class="db-menu-item" style="list-style: none;">
+          <a href="index.html" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
+            <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: var(--text-muted); fill: none; stroke-width: 2;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Sign Out
+          </a>
+        </li>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="db-main" id="dbMainView">
+      
+      <!-- Top Bar Header -->
+      <header class="db-header">
+        <h1 class="db-header-title" id="currentViewTitle">Project Overview</h1>
+        <div class="db-header-actions">
+          <div class="db-search">
+            <svg class="db-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" class="db-search-input" id="dbSearchField" placeholder="Search evaluation queue...">
+          </div>
+          
+          <!-- Gear Settings -->
+          <button class="btn-icon" id="settingsBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+          
+          <div class="db-profile">
+            <span style="font-size: 0.85rem; font-weight: 500;" id="userProfileName">Alex Chen</span>
+            <div class="db-avatar" id="userAvatar">AC</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Scrollable Body Frame -->
+      <div class="db-body">
+        
+        <!-- ==========================================
+             VIEW 1: PROJECT OVERVIEW (overview)
+             ========================================== -->
+        <div class="db-tab-view active" id="view-overview">
+          <div class="project-summary-header">
+            <div class="project-title-area">
+              <h2 id="projNameText">Smart Attendance System</h2>
+              <p>Submitted by <span id="projAuthorText" style="color: var(--text-main); font-weight: 500;">Alex Chen</span> &bull; CS499 Final Project</p>
+            </div>
+            <div class="project-actions">
+              <button class="btn btn-primary" id="overviewScanTrigger">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Re-Analyze
+              </button>
+            </div>
+          </div>
+
+          <!-- Overall score grid -->
+          <div class="score-container-grid">
+            <div class="overall-score-card glass-card">
+              <div class="overall-score-circle">
+                <span class="overall-score-val" id="overallScoreVal">84</span>
+                <span class="overall-score-label">Score</span>
+              </div>
+              <span class="badge badge-success">Passing Evaluation</span>
+            </div>
+
+            <!-- Subscores breakdown cards -->
+            <div class="score-details-grid">
+              <div class="subscore-card glass-card">
+                <div class="subscore-info">
+                  <h4>Technical Execution</h4>
+                  <p id="subscoreExecution">88</p>
+                </div>
+                <div class="subscore-gauge">
+                  <svg width="48" height="48" viewBox="0 0 36 36">
+                    <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border-color)" stroke-width="3"/>
+                    <path class="gauge-fill" id="gaugeExecution" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--color-primary)" stroke-width="3" stroke-dasharray="88, 100"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="subscore-card glass-card">
+                <div class="subscore-info">
+                  <h4>Originality</h4>
+                  <p id="subscoreOriginality">81</p>
+                </div>
+                <div class="subscore-gauge">
+                  <svg width="48" height="48" viewBox="0 0 36 36">
+                    <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border-color)" stroke-width="3"/>
+                    <path class="gauge-fill" id="gaugeOriginality" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--color-secondary)" stroke-width="3" stroke-dasharray="81, 100"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="subscore-card glass-card">
+                <div class="subscore-info">
+                  <h4>Documentation Integrity</h4>
+                  <p id="subscoreDocumentation">91</p>
+                </div>
+                <div class="subscore-gauge">
+                  <svg width="48" height="48" viewBox="0 0 36 36">
+                    <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border-color)" stroke-width="3"/>
+                    <path class="gauge-fill" id="gaugeDocumentation" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--status-green)" stroke-width="3" stroke-dasharray="91, 100"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="subscore-card glass-card">
+                <div class="subscore-info">
+                  <h4>Development Process</h4>
+                  <p id="subscoreProcess">86</p>
+                </div>
+                <div class="subscore-gauge">
+                  <svg width="48" height="48" viewBox="0 0 36 36">
+                    <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border-color)" stroke-width="3"/>
+                    <path class="gauge-fill" id="gaugeProcess" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--status-yellow)" stroke-width="3" stroke-dasharray="86, 100"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stack & Analytics -->
+          <div class="details-section-grid">
+            <div class="tech-stack-card glass-card">
+              <h3>Technology Stack</h3>
+              <div class="tech-stack-list" id="overviewTechStack">
+                <span class="tech-badge">Python 3.10</span>
+                <span class="tech-badge">Flask</span>
+                <span class="tech-badge">Pytest</span>
+                <span class="tech-badge">PostgreSQL</span>
+                <span class="tech-badge">Bash</span>
+                <span class="tech-badge">Docker</span>
+              </div>
+            </div>
+
+            <div class="analytics-card glass-card">
+              <h3>Code Analytics</h3>
+              <div class="analytics-grid">
+                <div class="analytic-metric">
+                  <div class="metric-val" id="metricLOC">15,204</div>
+                  <div class="metric-lbl">LOC</div>
+                </div>
+                <div class="analytic-metric">
+                  <div class="metric-val" id="metricComplexity">4.3</div>
+                  <div class="metric-lbl">Avg Complexity</div>
+                </div>
+                <div class="analytic-metric">
+                  <div class="metric-val" id="metricCoverage">82%</div>
+                  <div class="metric-lbl">Test Coverage</div>
+                </div>
+                <div class="analytic-metric">
+                  <div class="metric-val" id="metricAI">12%</div>
+                  <div class="metric-lbl">AI Generated</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Strengths / Improvements -->
+          <div class="feedback-grid">
+            <div class="feedback-card strengths glass-card">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Identified Strengths
+              </h3>
+              <ul class="feedback-list" id="listStrengths">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--status-green);"><polyline points="20 6 9 17 4 12"/></svg>
+                  Clean separation of concerns between frontend assets and backend service layer.
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--status-green);"><polyline points="20 6 9 17 4 12"/></svg>
+                  Well-documented setup instructions and setup scripts in the root README.
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--status-green);"><polyline points="20 6 9 17 4 12"/></svg>
+                  Robust unit testing of core face recognition algorithms using OpenCV mock parameters.
+                </li>
+              </ul>
+            </div>
+
+            <div class="feedback-card improvements glass-card">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Areas for Improvement
+              </h3>
+              <ul class="feedback-list" id="listImprovements">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-secondary);"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Lack of database connection pooling in Flask backend causing queries to overflow connection limits.
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-secondary);"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Mobile responsive layout breaking on dashboard screens under 480px width limits.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 2: AI SIGNALS (signals)
+             ========================================== -->
+        <div class="db-tab-view" id="view-signals">
+          <div class="db-notice">
+            <div class="db-notice-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </div>
+            <div class="db-notice-content">
+              <h4>Probabilistic Assistant Signals Assessment</h4>
+              <p>This panel uses AST syntax parsing shifts, velocity modeling anomalies, and coding pattern matches to map AI development signals.</p>
+            </div>
+          </div>
+
+          <div class="signals-meta-grid">
+            <div class="signal-likelihood-card glass-card">
+              <h3>Assistance Likelihood</h3>
+              <div class="signal-value-box">
+                <span class="signal-value-badge" id="signalLikelihoodVal">Medium</span>
+              </div>
+              <p class="signal-conf">Confidence Score: <strong id="signalConfPercent" style="color: var(--text-main);">84%</strong></p>
+              
+              <hr class="divider" style="margin: 20px 0; width: 100%;">
+              
+              <div class="report-meta-data" style="text-align: left; width: 100%;">
+                <p>Inspection ID: <span id="signalInspectionId">PRJ-24-991A</span></p>
+                <p>Run Time: <span id="signalRunTime">Oct 24, 14:38 UTC</span></p>
+                <p>Target Node: <span id="signalTargetNode">/src/backend/core</span></p>
+              </div>
+            </div>
+
+            <!-- Finding items list -->
+            <div class="findings-list">
+              <div class="finding-item glass-card anomaly">
+                <div class="finding-icon-wrap">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="finding-desc">
+                  <h4>Volume Spike (Anomaly Detection)</h4>
+                  <p>Large code insertion of complex logical structure discovered in commit #14. Added approximately 850 lines of code across three backend models in a single 15-minute window.</p>
+                </div>
+                <div class="finding-severity">
+                  <span class="badge badge-danger">High Severity</span>
+                </div>
+              </div>
+
+              <div class="finding-item glass-card deviation">
+                <div class="finding-icon-wrap">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+                <div class="finding-desc">
+                  <h4>Coding Style Shift (Deviation Modeling)</h4>
+                  <p>Discovered sudden structural shift from imperative coding to functional python comprehensions matching syntax guidelines of LLM model output instructions (PEP8 strict layout compliance).</p>
+                </div>
+                <div class="finding-severity">
+                  <span class="badge badge-warning">Medium Deviation</span>
+                </div>
+              </div>
+
+              <div class="finding-item glass-card pattern">
+                <div class="finding-icon-wrap">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                </div>
+                <div class="finding-desc">
+                  <h4>Structural Matching (Pattern Matcher)</h4>
+                  <p>High Abstract Syntax Tree (AST) similarity rating against training baselines for standard REST boilerplate scaffolding models. Discovered near-perfect alignment in helper routines.</p>
+                </div>
+                <div class="finding-severity">
+                  <span class="badge badge-warning">Medium Signal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 3: INNOVATION DNA (innovation)
+             ========================================== -->
+        <div class="db-tab-view" id="view-innovation">
+          <div class="innovation-layout">
+            
+            <!-- Graph Visualizer -->
+            <div class="dna-graph-card glass-card">
+              <h3>Technology DNA Graph Integration</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Select network nodes below to inspect functional contribution weights.</p>
+              
+              <div class="dna-canvas-container" id="dnaCanvas">
+                <!-- SVG Grid Canvas behind nodes -->
+                <svg width="100%" height="100%" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;" id="dnaConnectionsSvg">
+                  <!-- Dynamic SVG lines rendered via Javascript -->
+                </svg>
+
+                <div class="dna-node selected" style="top: 25%; left: 15%;" data-node="cnn" data-name="Custom CNN Model" data-weight="35%" data-desc="Locally developed convolutional network configuration tailored for attendance tracking facial metrics.">CNN</div>
+                <div class="dna-node accent" style="top: 45%; left: 40%;" data-node="resnet" data-name="ResNet-50 Pipeline" data-weight="45%" data-desc="Integrated pretrained weights mapped to feature vectors via spatial crop layers.">R50</div>
+                <div class="dna-node" style="top: 20%; left: 65%;" data-node="loss" data-name="Optimized Loss Model" data-weight="55%" data-desc="Modified contrastive training equations adjusting gradients during clustering.">LSS</div>
+                <div class="dna-node accent" style="top: 65%; left: 70%;" data-node="db" data-name="PostgreSQL Sync" data-weight="20%" data-desc="Asynchronous pipeline integration loading frames directly into memory nodes.">DB</div>
+                <div class="dna-node" style="top: 75%; left: 25%;" data-node="face" data-name="OpenCV Alignment" data-weight="30%" data-desc="Spatial adjustments aligned relative to eye placement maps.">FAC</div>
+
+                <div class="dna-details-floating" id="dnaNodeDetails">
+                  <span style="font-family: var(--font-mono); color: var(--color-primary); font-size: 0.75rem; text-transform: uppercase;">Active Node Specs</span>
+                  <h4 style="margin: 4px 0 2px;" id="nodeName">Custom CNN Model</h4>
+                  <p id="nodeDesc">Locally developed convolutional network configuration tailored for attendance tracking facial metrics.</p>
+                  <span class="badge badge-success" style="margin-top: 6px; padding: 2px 8px; font-size: 0.7rem;" id="nodeWeight">Weight: 35%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Novelty Score Column -->
+            <div class="novelty-score-card glass-card">
+              <div>
+                <h3>Novelty Score</h3>
+                <div class="novelty-gauge-wrapper">
+                  <div class="overall-score-circle" style="border-top-color: var(--color-secondary); width: 120px; height: 120px;">
+                    <span class="overall-score-val" style="font-size: 2.8rem;" id="noveltyScoreVal">87</span>
+                    <span class="overall-score-label">Novelty</span>
+                  </div>
+                </div>
+                
+                <div class="innovation-contributions">
+                  <h4 style="font-size: 0.9rem; margin-bottom: 12px; font-family: var(--font-mono); text-transform: uppercase; color: var(--text-muted);">Unique Contributions</h4>
+                  <div class="innovation-contribution-item">
+                    <h5>Optimized Loss Function</h5>
+                    <p>Custom contrastive loss model reduces convergence calculation steps by 15% under validation test metrics.</p>
+                  </div>
+                  <div class="innovation-contribution-item">
+                    <h5>Hybrid Asynchronous Data Pipeline</h5>
+                    <p>Real-time video loading tasks offloaded via secondary thread queues in Python backend structure.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 style="font-size: 0.85rem; margin-bottom: 12px; font-family: var(--font-mono); text-transform: uppercase; color: var(--text-muted);">Similar Matches Found</h4>
+                <div class="matches-list">
+                  <div class="match-item">
+                    <span class="match-title">Sensor-based Defect Detection</span>
+                    <span class="match-percentage">85% Match</span>
+                  </div>
+                  <div class="match-item">
+                    <span class="match-title">Automated QA System</span>
+                    <span class="match-percentage">68% Match</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="innovation-actions">
+            <button class="btn btn-secondary">Save Draft</button>
+            <button class="btn btn-primary" id="proceedToVivaBtn">Proceed to Viva Gen &rarr;</button>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 4: VIVA VOCE Q&A (viva)
+             ========================================== -->
+        <div class="db-tab-view" id="view-viva">
+          <div class="viva-meta-bar">
+            <span>PROJECT SPEC: <strong id="vivaProjectName" style="color: var(--text-main);">Attendance Prediction via ML</strong></span>
+            <span class="viva-session-id">SESSION ID: <strong id="vivaSessionId" style="color: var(--text-main);">VX-892-ATT</strong></span>
+          </div>
+
+          <div class="viva-console-grid">
+            <div class="viva-question-card glass-card">
+              <div class="viva-q-header">
+                <span class="viva-q-num" id="vivaQuestionNum">Question 03/10</span>
+                <span class="viva-q-cat" id="vivaQuestionCat">Methodology</span>
+              </div>
+              <h3 class="viva-q-text" id="vivaQuestionText">Why did you choose Random Forest instead of Logistic Regression for the attendance model, given the dataset's size?</h3>
+              
+              <div class="viva-q-tags" id="vivaQuestionTags">
+                <span class="viva-tag">Model Selection</span>
+                <span class="viva-tag">Ensemble Methods</span>
+                <span class="viva-tag">Dataset Constraints</span>
+              </div>
+
+              <div class="viva-transcript-box" id="vivaTranscriptBox">
+                <span class="transcript-placeholder" style="color: var(--text-muted); font-style: italic;">Press the microphone button to start answering...</span>
+              </div>
+
+              <div class="viva-actions">
+                <button class="viva-mic-btn" id="vivaMicBtn" title="Start Answer">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                  </svg>
+                </button>
+                <span id="vivaMicStatus" style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono);">MIC STATUS: OFFLINE</span>
+                
+                <button class="btn btn-secondary" id="vivaSkipBtn" style="margin-left: auto;">Skip Question</button>
+              </div>
+            </div>
+
+            <!-- Real-Time Evaluation metrics side pane -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <div class="viva-eval-card glass-card">
+                <h4 class="viva-eval-header">Live Evaluation</h4>
+                <div class="viva-score-rows">
+                  <div class="viva-score-item">
+                    <h1>Technical Accuracy</h1>
+                    <div class="viva-score-progress-container">
+                      <div class="viva-score-bar-bg">
+                        <div class="viva-score-bar-fill" id="vivaScoreAccuracy" style="width: 0%;"></div>
+                      </div>
+                      <span class="viva-score-val" id="vivaValAccuracy">0%</span>
+                    </div>
+                  </div>
+
+                  <div class="viva-score-item">
+                    <h5>Clarity & Flow</h5>
+                    <div class="viva-score-progress-container">
+                      <div class="viva-score-bar-bg">
+                        <div class="viva-score-bar-fill secondary" id="vivaScoreClarity" style="width: 0%;"></div>
+                      </div>
+                      <span class="viva-score-val" id="vivaValClarity">0%</span>
+                    </div>
+                  </div>
+
+                  <div class="viva-score-item">
+                    <h5>Depth of Answer</h5>
+                    <div class="viva-score-progress-container">
+                      <div class="viva-score-bar-bg">
+                        <div class="viva-score-bar-fill tertiary" id="vivaScoreDepth" style="width: 0%;"></div>
+                      </div>
+                      <span class="viva-score-val" id="vivaValDepth">0%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upcoming Viva Queue -->
+              <div class="viva-queue-card glass-card">
+                <h4 class="viva-queue-title">Evaluation Queue</h4>
+                <div class="viva-queue-list">
+                  <div class="viva-queue-item upcoming">
+                    <span>Q04: handling class imbalance</span>
+                    <span style="font-family: var(--font-mono); color: var(--color-primary);">Upcoming</span>
+                  </div>
+                  <div class="viva-queue-item">
+                    <span>Q05: ethics of predicting attendance</span>
+                    <span style="font-family: var(--font-mono); color: var(--text-muted);">Queued</span>
+                  </div>
+                  <div class="viva-queue-item">
+                    <span>Q06: deployment complexity targets</span>
+                    <span style="font-family: var(--font-mono); color: var(--text-muted);">Queued</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 5: FINAL EVALUATION REPORT (report)
+             ========================================== -->
+        <div class="db-tab-view" id="view-report">
+          <div class="report-paper">
+            
+            <!-- Watermark -->
+            <div class="report-watermark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+            </div>
+
+            <div class="report-header-section">
+              <div class="report-meta-data">
+                <h2 style="font-size: 1.8rem; margin-bottom: 12px; font-family: var(--font-headline);">ProjectLens Official Evaluation Report</h2>
+                <p>Submission ID: <span id="reportSubmissionId">#A94-B72-R11</span></p>
+                <p>Course: <span id="reportCourse">CS499: Advanced AI Systems</span></p>
+                <p>Evaluation Run: <span id="reportEvalDate">Aug 20, 2026</span></p>
+              </div>
+
+              <div class="report-grade-badge">
+                <span class="report-grade-val" id="reportFinalGrade">A+</span>
+                <span class="report-grade-label">Grade</span>
+              </div>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="report-summary-box">
+              <h3>Executive Summary</h3>
+              <p id="reportExecSummary">
+                The candidate demonstrates an exceptional grasp of advanced AI execution, implementing a robust and scalable architectural design. The code demonstrates robust unit testing, structured database migrations, and highly original loss optimization modifications. The candidate successfully defended technical design choices during the Viva Voce session, showing depth in ensemble modeling selection parameters. Minor opportunities for connection pooling optimization and dependency reduction are recommended.
+              </p>
+            </div>
+
+            <!-- Strengths and Weaknesses points columns -->
+            <div class="report-points-grid">
+              <div class="report-point-card strengths">
+                <h4>Core Strengths</h4>
+                <ul class="report-bullet-list" id="reportCoreStrengths">
+                  <li>
+                    <strong>Algorithmic Efficiency</strong>
+                    <span>Implementation of custom contrastive loss optimizing face frame clustering speeds by 15%.</span>
+                  </li>
+                  <li>
+                    <strong>Documentation Rigor</strong>
+                    <span>High documentation-to-code alignment (91%), clean structure, and clear installation guides.</span>
+                  </li>
+                  <li>
+                    <strong>Viva Voce Execution</strong>
+                    <span>Defended choice of model selection with structured constraints arguments relative to dataset scalability.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="report-point-card improvements">
+                <h4>Refinement Requirements</h4>
+                <ul class="report-bullet-list" id="reportRefinements">
+                  <li>
+                    <strong>Memory Optimization</strong>
+                    <span>Minor thread locking leaks found in backend loader threads during frame upload simulation tests.</span>
+                  </li>
+                  <li>
+                    <strong>Dependency Bloat</strong>
+                    <span>Unused references inside backend configuration layers can be pruned to improve Docker build limits.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="report-actions">
+              <button class="btn btn-primary" id="btnExportPdf">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export PDF Report
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 6: FACULTY DASHBOARD (faculty)
+             ========================================== -->
+        <div class="db-tab-view" id="view-faculty">
+          
+          <!-- Filter elements -->
+          <div class="faculty-filters">
+            <div class="faculty-filters-group" style="display: flex; gap: 8px;">
+              <div class="faculty-filter-tabs">
+                <button class="faculty-filter-tab active" data-filter="all">All Submissions</button>
+                <button class="faculty-filter-tab" data-filter="completed">Graded</button>
+                <button class="faculty-filter-tab" data-filter="pending">Pending Viva</button>
+                <button class="faculty-filter-tab" data-filter="scanning">Scanning</button>
+              </div>
+            </div>
+
+            <div class="faculty-actions">
+              <button class="btn btn-secondary" id="facultyImportBtn" style="padding: 8px 16px; font-size: 0.85rem;">Import Roster</button>
+            </div>
+          </div>
+
+          <!-- Roster Queue table layout -->
+          <div class="faculty-table-card glass-card">
+            <table class="faculty-table">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>Submitted Project</th>
+                  <th>Overall Score</th>
+                  <th>Viva Status</th>
+                  <th>Final Grade</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="facultyRosterBody">
+                <tr data-student="Alex Chen" data-status="completed">
+                  <td>
+                    <div class="student-info">
+                      <h4>Alex Chen</h4>
+                      <p>alex.chen@academic.edu</p>
+                    </div>
+                  </td>
+                  <td>Smart Attendance System</td>
+                  <td><span class="score-display-pill high">84</span></td>
+                  <td><span class="badge badge-success" style="padding: 2px 8px; font-size: 0.75rem;">Done</span></td>
+                  <td><strong>A+</strong></td>
+                  <td style="text-align: right;">
+                    <button class="table-action-btn active-grade" onclick="loadStudentData('Alex Chen')">Review</button>
+                  </td>
+                </tr>
+                <tr data-student="Elena Rostova" data-status="pending">
+                  <td>
+                    <div class="student-info">
+                      <h4>Elena Rostova</h4>
+                      <p>elena.r@academic.edu</p>
+                    </div>
+                  </td>
+                  <td>Image Segmentation Pipeline</td>
+                  <td><span class="score-display-pill high">91</span></td>
+                  <td><span class="badge badge-warning" style="padding: 2px 8px; font-size: 0.75rem;">Pending Q&A</span></td>
+                  <td><strong>- -</strong></td>
+                  <td style="text-align: right;">
+                    <button class="table-action-btn" onclick="loadStudentData('Elena Rostova')">Start Viva</button>
+                  </td>
+                </tr>
+                <tr data-student="Marcus Vance" data-status="pending">
+                  <td>
+                    <div class="student-info">
+                      <h4>Marcus Vance</h4>
+                      <p>m.vance@academic.edu</p>
+                    </div>
+                  </td>
+                  <td>Distributed Database Consensus</td>
+                  <td><span class="score-display-pill mid">76</span></td>
+                  <td><span class="badge badge-warning" style="padding: 2px 8px; font-size: 0.75rem;">Pending Q&A</span></td>
+                  <td><strong>- -</strong></td>
+                  <td style="text-align: right;">
+                    <button class="table-action-btn" onclick="loadStudentData('Marcus Vance')">Start Viva</button>
+                  </td>
+                </tr>
+                <tr data-student="Sarah Jenkins" data-status="scanning">
+                  <td>
+                    <div class="student-info">
+                      <h4>Sarah Jenkins</h4>
+                      <p>s.jenkins@academic.edu</p>
+                    </div>
+                  </td>
+                  <td>Sensor-based Defect Detector</td>
+                  <td><span class="score-display-pill low">45</span></td>
+                  <td><span class="badge badge-danger" style="padding: 2px 8px; font-size: 0.75rem;">Analyzing...</span></td>
+                  <td><strong>- -</strong></td>
+                  <td style="text-align: right;">
+                    <button class="table-action-btn" disabled style="opacity:0.5;">Wait</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             VIEW 7: STYLE GUIDE (styleguide)
+             ========================================== -->
+        <div class="db-tab-view" id="view-styleguide">
+          
+          <div class="sg-section">
+            <h3 class="sg-title">Colors</h3>
+            <div class="sg-color-grid">
+              <div class="sg-color-card">
+                <div class="sg-color-swatch" style="background-color: var(--color-primary);"></div>
+                <div class="sg-color-details">
+                  <h4>Primary Blue</h4>
+                  <p>#3157D5</p>
+                </div>
+              </div>
+              <div class="sg-color-card">
+                <div class="sg-color-swatch" style="background-color: var(--color-secondary);"></div>
+                <div class="sg-color-details">
+                  <h4>Secondary Coral</h4>
+                  <p>#E9785B</p>
+                </div>
+              </div>
+              <div class="sg-color-card">
+                <div class="sg-color-swatch" style="background-color: var(--color-tertiary); color: #171717;"></div>
+                <div class="sg-color-details">
+                  <h4>Tertiary Cream</h4>
+                  <p>#E8E3D8</p>
+                </div>
+              </div>
+              <div class="sg-color-card">
+                <div class="sg-color-swatch" style="background-color: var(--bg-card);"></div>
+                <div class="sg-color-details">
+                  <h4>Neutral Card BG</h4>
+                  <p>#191A20</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sg-section">
+            <h3 class="sg-title">Typography</h3>
+            <div class="sg-type-row">
+              <span class="sg-type-label">Headline (Space Grotesk)</span>
+              <h2 style="font-size: 2.2rem; font-family: var(--font-headline);">Space Grotesk Regular & Bold</h2>
+            </div>
+            <div class="sg-type-row">
+              <span class="sg-type-label">Body Text (Inter)</span>
+              <p style="font-size: 1rem; font-family: var(--font-body); color: var(--text-muted);">Inter body copy for paragraphs, details, descriptions, and user feedback structures.</p>
+            </div>
+            <div class="sg-type-row">
+              <span class="sg-type-label">Label (JetBrains Mono)</span>
+              <p style="font-size: 0.9rem; font-family: var(--font-mono); color: var(--color-primary);">JetBrains Mono code, parameters, and metadata elements</p>
+            </div>
+          </div>
+
+          <div class="sg-section">
+            <h3 class="sg-title">Buttons</h3>
+            <div class="sg-btn-wrap">
+              <button class="btn btn-primary">Primary Button</button>
+              <button class="btn btn-secondary">Secondary Button</button>
+              <button class="btn btn-inverted">Inverted Button</button>
+              <button class="btn btn-outlined">Outlined Button</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Scan Progress screen view overlay (Full Frame) -->
+    <div class="scan-container" id="scanLoadingView" style="width: 100%; height: 100vh; background-color: var(--bg-main);">
+      <div class="scan-spinner"></div>
+      <h2 class="scan-text">Analyzing Project Artifacts...</h2>
+      <p class="scan-subtext" id="scanProgressText">Initializing Parser node logs...</p>
+    </div>
+
+  </div>
+
+  <!-- Drag-and-Drop Upload Modal -->
+  <div class="upload-modal" id="uploadModal">
+    <div class="upload-container glass-card">
+      <div class="upload-dropzone" id="dropzone">
+        <div class="upload-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3>Upload Project Directory</h3>
+        <p>Drag and drop a <strong>.zip</strong> containing source files, or click to browse</p>
+        <input type="file" id="fileInput" style="display: none;" accept=".zip,.py,.js">
+      </div>
+      <button class="btn btn-secondary" id="closeUploadModalBtn" style="width: 100%;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-msg" id="toastNotification">
+    Report exported successfully!
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
