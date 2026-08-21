@@ -1,1 +1,115 @@
- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectLens - Does the project tell the same story as the code?</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Landing Page Header -->
+  <header class="lp-header">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <a href="index.html" class="lp-logo" id="logoLink">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="20" height="20" rx="6" fill="#3157D5"/>
+          <circle cx="12" cy="12" r="5" fill="#121318"/>
+          <circle cx="12" cy="12" r="2" fill="#E9785B"/>
+        </svg>
+        <span>ProjectLens</span>
+      </a>
+      
+      <nav class="lp-nav">
+        <a href="#methodology" class="lp-nav-link">Methodology</a>
+        <a href="#peer-review" class="lp-nav-link">Peer Review</a>
+        <a href="#pricing" class="lp-nav-link">Pricing</a>
+        <a href="dashboard.html" class="btn btn-inverted" id="getStartedBtn" style="padding: 8px 18px; font-size: 0.88rem;">Get Started</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="container">
+    <section class="lp-hero">
+      <div class="lp-hero-left">
+        <span class="badge badge-version">v 2.4 Academic Edition</span>
+        <h1 class="lp-hero-title">Does the project tell the same story as the code?</h1>
+        <p class="lp-hero-subtitle">
+          An advanced digital laboratory instrument designed to inspect code structure, evaluate originality, and cross-reference documentation integrity with probabilistic rigor.
+        </p>
+        <div class="lp-hero-ctas">
+          <a href="dashboard.html?action=upload" class="btn btn-primary" id="analyzeProjectBtn">
+            Analyze a Project
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </a>
+          <a href="#methodology" class="btn btn-secondary" id="viewMethodologyBtn">View Methodology</a>
+        </div>
+      </div>
+      
+      <!-- Right Graphic Area -->
+      <div class="lp-hero-right" style="position: relative;">
+        <div class="lp-graphic-card">
+          <div class="lp-graphic-header">
+            <span class="lp-dot lp-dot-r"></span>
+            <span class="lp-dot lp-dot-y"></span>
+            <span class="lp-dot lp-dot-g"></span>
+            <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-left: 8px;">analyzer.py</span>
+          </div>
+          
+          <div class="lp-code-editor">
+            <span class="code-comment"># ProjectLens Academic AI Inspector</span><br>
+            <span class="code-keyword">import</span> ast_inspector<br>
+            <span class="code-keyword">import</span> semantic_aligner<br><br>
+            <span class="code-keyword">def</span> <span class="code-def">verify_project_integrity</span>(source_dir, report_doc):<br>
+            &nbsp;&nbsp;ast_tree = ast_inspector.parse(source_dir)<br>
+            &nbsp;&nbsp;alignment = semantic_aligner.align(ast_tree, report_doc)<br>
+            &nbsp;&nbsp;<span class="code-keyword">if</span> alignment.score &gt; <span class="code-string">0.85</span>:<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">return</span> <span class="code-string">"High Structural Integrity"</span><br>
+            &nbsp;&nbsp;<span class="code-keyword">return</span> <span class="code-string">"Inspect Discrepancies"</span><br><br>
+            <span class="code-comment"># Running statistical checks...</span>
+          </div>
+
+          <!-- Float Card 1 (Bottom Left) -->
+          <div class="lp-float-card lp-float-card-1">
+            <div class="float-icon">87%</div>
+            <div class="float-details">
+              <h4>Structural Integrity</h4>
+              <p>Ast matching logic passed</p>
+            </div>
+          </div>
+
+          <!-- Float Card 2 (Top Right) -->
+          <div class="lp-float-card lp-float-card-2">
+            <div class="float-icon" style="color: var(--color-secondary);">H</div>
+            <div class="float-details">
+              <h4>High Doc Alignment</h4>
+              <p>Documentation matches code</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="lp-footer">
+    <div class="container lp-footer-content">
+      <div class="lp-footer-links">
+        <a href="#ethics" class="lp-footer-link">Ethics Policy</a>
+        <a href="#institutional" class="lp-footer-link">Institutional Access</a>
+        <a href="#api" class="lp-footer-link">API Documentation</a>
+        <a href="#privacy" class="lp-footer-link">Privacy</a>
+      </div>
+      <div class="lp-footer-copy">
+        &copy; 2026 ProjectLens. Stitch Academic Edition.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
