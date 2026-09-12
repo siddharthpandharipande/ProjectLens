@@ -1,17 +1,64 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from app.models.code_metric import CodeMetric
+from app.services.technical_execution_analyzer import analyze_technical_execution
+from app.services.documentation_analyzer import analyze_documentation_integrity
+from app.services.git_analyzer import analyze_development_process
 
-def get_evaluation_scores(project_id: str) -> Dict[str, Optional[float]]:
+def calculate_evaluation_scores(
+    cm: Optional[CodeMetric],
+    scanned_files: List[Dict[str, Any]],
+    extracted_dir: Any
+) -> Dict[str, Any]:
     """
-    Evaluation Score Interface.
-    
-    IMPORTANT: Unimplemented evaluation modules MUST return None (JSON null).
-    The frontend will render "Pending Evaluation" or "Not evaluated".
-    Numerical scores MUST NOT be fabricated.
+    Computes deterministic, evidence-backed evaluation scores for all 5 dimensions.
+    Zero hardcoded values. Unimplemented/unavailable modules return None with transparent status.
     """
+    file_types = [sf.get("file_type") for sf in scanned_files]
+
+    # 1. Technical Execution
+    tech_exec_res = analyze_technical_execution(cm, file_types) if cm else {
+        "score": None, "status": "Pending", "evidence": ["Code metrics pending analysis."], "breakdown": {}
+    }
+
+    # 2. Documentation Integrity
+    doc_res = analyze_documentation_integrity(scanned_files)
+
+    # 3. Development Process
+    git_res = analyze_development_process(extracted_dir)
+
+    # 4. Originality (Pending comparison data)
+    orig_res = {
+        "score": None,
+        "status": "Pending",
+        "evidence": ["Requires project comparison data"],
+        "breakdown": {}
+    }
+
+    # 5. Overall Score (Derived transparently from available numerical scores)
+    valid_scores = []
+    if tech_exec_res.get("score") is not None:
+        valid_scores.append(tech_exec_res["score"])
+    if doc_res.get("score") is not None:
+        valid_scores.append(doc_res["score"])
+    if git_res.get("score") is not None:
+        valid_scores.append(git_res["score"])
+
+    if valid_scores:
+        overall_val = round(sum(valid_scores) / len(valid_scores), 1)
+        overall_status = f"Based on {len(valid_scores)} of 4 evaluation dimensions"
+    else:
+        overall_val = None
+        overall_status = "Evaluation Pending"
+
     return {
-        "overall_score": None,
-        "technical_execution": None,
-        "originality": None,
-        "documentation_integrity": None,
-        "development_process": None,
+        "overall_score": overall_val,
+        "overall_status": overall_status,
+        "technical_execution": tech_exec_res.get("score"),
+        "technical_execution_detail": tech_exec_res,
+        "documentation_integrity": doc_res.get("score"),
+        "documentation_integrity_detail": doc_res,
+        "development_process": git_res.get("score"),
+        "development_process_detail": git_res,
+        "originality": orig_res.get("score"),
+        "originality_detail": orig_res,
     }

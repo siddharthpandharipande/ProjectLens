@@ -42,22 +42,38 @@ export interface CodeMetrics {
   ai_assistance: string;
 }
 
+export interface EvaluationDetail {
+  score: number | null;
+  status: string;
+  evidence: string[];
+  breakdown?: Record<string, number>;
+}
+
 export interface Evaluation {
   overall_score: number | null;
+  overall_status?: string | null;
   technical_execution: number | null;
+  technical_execution_detail?: EvaluationDetail | null;
   originality: number | null;
+  originality_detail?: EvaluationDetail | null;
   documentation_integrity: number | null;
+  documentation_integrity_detail?: EvaluationDetail | null;
   development_process: number | null;
+  development_process_detail?: EvaluationDetail | null;
 }
 
 export interface Strength {
   title: string;
   description: string;
+  evidence?: string | null;
 }
 
 export interface Improvement {
   title: string;
+  severity?: 'info' | 'warning' | 'critical';
   description: string;
+  evidence?: string | null;
+  metric?: string | number | null;
 }
 
 export interface AnalysisMeta {

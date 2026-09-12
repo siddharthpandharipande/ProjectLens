@@ -64,14 +64,9 @@ def run_analysis_background_task(project_id: str, zip_file_path: Path):
             job.current_stage = "Analysis error"
             db.commit()
     finally:
-        # Cleanup temp directory & uploaded file
+        # Cleanup temp extraction directory
         extract_target_dir = settings.TEMP_DIR / f"project_{project_id}"
         cleanup_project(extract_target_dir)
-        if zip_file_path.exists():
-            try:
-                zip_file_path.unlink()
-            except Exception:
-                pass
         db.close()
 
 @router.post("/upload", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED)

@@ -141,28 +141,37 @@ export const ProjectOverviewPage: React.FC = () => {
               {/* Top Summary Grid (Overall Score + Subscores) */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Overall Score Card */}
-                <OverallScoreCard score={overview.evaluation.overall_score} />
+                <OverallScoreCard
+                  score={overview.evaluation.overall_score}
+                  evaluation={overview.evaluation}
+                />
 
                 {/* Subscores 2x2 Grid */}
                 <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <EvaluationMetricCard
                     title="Technical Execution"
                     score={overview.evaluation.technical_execution}
+                    detail={overview.evaluation.technical_execution_detail}
                     strokeColor="#3157D5"
                   />
                   <EvaluationMetricCard
                     title="Originality"
                     score={overview.evaluation.originality}
+                    detail={overview.evaluation.originality_detail}
+                    subtext="Requires project comparison data"
                     strokeColor="#E9785B"
                   />
                   <EvaluationMetricCard
                     title="Documentation Integrity"
                     score={overview.evaluation.documentation_integrity}
+                    detail={overview.evaluation.documentation_integrity_detail}
                     strokeColor="#10B981"
                   />
                   <EvaluationMetricCard
                     title="Development Process"
                     score={overview.evaluation.development_process}
+                    detail={overview.evaluation.development_process_detail}
+                    subtext={overview.evaluation.development_process === null ? "Git history not included" : undefined}
                     strokeColor="#F59E0B"
                   />
                 </div>

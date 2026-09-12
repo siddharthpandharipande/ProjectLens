@@ -55,20 +55,35 @@ class CodeMetricsSchema(BaseModel):
     test_coverage: str  # e.g., "N/A"
     ai_assistance: str  # e.g., "Pending Analysis"
 
+class EvaluationDetailSchema(BaseModel):
+    score: Optional[float] = None
+    status: str = "completed"
+    evidence: List[str] = []
+    breakdown: Dict[str, Any] = {}
+
 class EvaluationSchema(BaseModel):
     overall_score: Optional[float] = None
+    overall_status: Optional[str] = "Evaluation Pending"
     technical_execution: Optional[float] = None
+    technical_execution_detail: Optional[EvaluationDetailSchema] = None
     originality: Optional[float] = None
+    originality_detail: Optional[EvaluationDetailSchema] = None
     documentation_integrity: Optional[float] = None
+    documentation_integrity_detail: Optional[EvaluationDetailSchema] = None
     development_process: Optional[float] = None
+    development_process_detail: Optional[EvaluationDetailSchema] = None
 
 class StrengthSchema(BaseModel):
     title: str
     description: str
+    evidence: Optional[str] = None
 
 class ImprovementSchema(BaseModel):
     title: str
+    severity: str = "warning"
     description: str
+    evidence: Optional[str] = None
+    metric: Optional[Any] = None
 
 class AnalysisMetaSchema(BaseModel):
     status: str

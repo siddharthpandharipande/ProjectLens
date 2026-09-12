@@ -45,13 +45,12 @@ def test_full_project_upload_and_overview():
     assert overview["summary"]["source_files"] >= 2
     assert overview["code_metrics"]["loc"] > 0
     
-    # Verify evaluation scores are explicitly null (Pending)
+    # Verify evaluation scores
     eval_scores = overview["evaluation"]
-    assert eval_scores["overall_score"] is None
-    assert eval_scores["technical_execution"] is None
-    assert eval_scores["originality"] is None
-    assert eval_scores["documentation_integrity"] is None
-    assert eval_scores["development_process"] is None
+    assert eval_scores["overall_score"] is not None
+    assert eval_scores["technical_execution"] is not None
+    assert eval_scores["documentation_integrity"] is not None
+    assert eval_scores["originality"] is None  # Pending comparison data
     
     # Verify strengths & improvements are returned
     assert isinstance(overview["strengths"], list)

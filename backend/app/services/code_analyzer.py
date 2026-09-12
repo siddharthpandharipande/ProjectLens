@@ -175,3 +175,34 @@ def analyze_single_file(abs_path: Path, language: str, file_type: str) -> Dict[s
         result["error_message"] = str(e)
         
     return result
+
+def detect_test_coverage(scanned_files: List[Dict[str, Any]]) -> str:
+    """
+    Parses actual test coverage artifacts (coverage.xml, coverage.json, lcov.info, etc.) if present.
+    If no coverage report exists, returns "N/A".
+    """
+    target_coverage_files = {"coverage.xml", "coverage.json", "lcov.info", ".coverage"}
+
+    for sf in scanned_files:
+        fn_lower = sf.get("filename", "").lower()
+        if fn_lower in target_coverage_files:
+            abs_path = sf.get("abs_path")
+            if abs_path and isinstance(abs_path, Path) and abs_path.exists():
+                try:
+                    content = abs_path.read_text(encoding="utf-8", errors="ignore")
+
+                    # XML coverage parsing line-rate="0.85"
+                    match = re.search(r'line-rate=["\']([0-9\.]+)["\']', content)
+                    if match:
+                        rate = float(match.group(1))
+                        pct = round(rate * 100 if rate <= 1.0 else rate, 1)
+                        return f"{pct}%"
+
+                    # JSON coverage parsing "pct": 85.5
+                    match_json = re.search(r'"lines":\s*\{\s*"total":\s*\d+,\s*"covered":\s*\d+,\s*"pct":\s*([0-9\.]+)', content)
+                    if match_json:
+                        return f"{round(float(match_json.group(1)), 1)}%"
+                except Exception:
+                    pass
+
+    return "N/A"

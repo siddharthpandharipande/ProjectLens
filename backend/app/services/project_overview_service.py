@@ -15,8 +15,10 @@ from app.services.technology_detector import (
     build_technology_stack,
     detect_technologies,
 )
-from app.services.code_analyzer import analyze_single_file
-from app.services.score_engine import get_evaluation_scores
+from app.services.code_analyzer import analyze_single_file, detect_test_coverage
+from app.services.score_engine import calculate_evaluation_scores
+from app.services.strength_detector import detect_strengths
+from app.services.improvement_detector import detect_improvements
 from app.config import analysis_thresholds as thresholds
 
 def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job: AnalysisJob):
@@ -269,6 +271,8 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
     comment_lines = cm.comment_lines if cm else 0
     code_lines = cm.code_lines if cm else 0
 
+    scanned_mock = [{"filename": f.filename, "rel_path": f.path, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path)} for f in files]
+
     # Tech stack from DB or fallback scan
     db_techs = db.query(ProjectTechnology).filter(ProjectTechnology.project_id == project.id).all()
     if db_techs:
@@ -283,7 +287,6 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
             for pt in db_techs
         ]
     else:
-        scanned_mock = [{"filename": f.filename, "rel_path": f.path, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path)} for f in files]
         tech_list = detect_technologies(scanned_mock)
 
     tech_categories = set(t["category"] for t in tech_list)
@@ -293,12 +296,18 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
         "category_count": len(tech_categories)
     }
     
-    # Compute strengths & improvements
-    strengths = compute_evidence_based_strengths(cm, tech_list) if cm else []
-    improvements = compute_evidence_based_improvements(cm, failed_files_count) if cm else []
+    # 1. Evaluation Scores Engine
+    scores_payload = calculate_evaluation_scores(cm, scanned_mock, Path("."))
+
+    # 2. Coverage Detection
+    coverage_text = detect_test_coverage(scanned_mock)
+
+    # 3. Compute Evidence-Backed Strengths & Improvements
+    doc_detail = scores_payload.get("documentation_integrity_detail", {})
+    git_detail = scores_payload.get("development_process_detail", {})
     
-    # Unimplemented scores interface (returns nulls)
-    scores = get_evaluation_scores(project.id)
+    strengths = detect_strengths(cm, tech_list, doc_detail, git_detail, scanned_mock)
+    improvements = detect_improvements(cm, failed_files_count, doc_detail, git_detail, coverage_text)
 
     return {
         "project": {
@@ -326,10 +335,10 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
             "functions": functions_count,
             "classes": classes_count,
             "test_files": test_files_count,
-            "test_coverage": "N/A",  # No coverage report detected
-            "ai_assistance": "Pending Analysis",  # Future AI Signals module
+            "test_coverage": coverage_text,  # Real coverage % or N/A
+            "ai_assistance": "Pending Analysis",  # Requires AI Signals module
         },
-        "evaluation": scores,
+        "evaluation": scores_payload,
         "strengths": strengths,
         "improvements": improvements,
         "analysis": {
