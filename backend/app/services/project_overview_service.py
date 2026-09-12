@@ -4,12 +4,16 @@ from sqlalchemy.orm import Session
 from app.models.project import Project
 from app.models.project_file import ProjectFile
 from app.models.project_language import ProjectLanguage
+from app.models.project_technology import ProjectTechnology
 from app.models.code_metric import CodeMetric
 from app.models.analysis_job import AnalysisJob
 from app.services.project_parser import scan_project_files
 from app.services.language_detector import (
     calculate_language_distribution,
-    detect_technologies_from_evidence,
+)
+from app.services.technology_detector import (
+    build_technology_stack,
+    detect_technologies,
 )
 from app.services.code_analyzer import analyze_single_file
 from app.services.score_engine import get_evaluation_scores
@@ -37,11 +41,12 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
         db.commit()
         
         languages_data = calculate_language_distribution(scanned_files)
-        tech_stack = detect_technologies_from_evidence(extracted_dir, scanned_files)
+        tech_stack_data = build_technology_stack(scanned_files)
         
         # Delete old project records if re-analyzing
         db.query(ProjectFile).filter(ProjectFile.project_id == project.id).delete()
         db.query(ProjectLanguage).filter(ProjectLanguage.project_id == project.id).delete()
+        db.query(ProjectTechnology).filter(ProjectTechnology.project_id == project.id).delete()
         db.query(CodeMetric).filter(CodeMetric.project_id == project.id).delete()
         db.commit()
         
@@ -54,6 +59,18 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
                 percentage=lang_item["percentage"],
             )
             db.add(pl)
+
+        # Save technologies
+        for tech_item in tech_stack_data.get("technologies", []):
+            pt = ProjectTechnology(
+                project_id=project.id,
+                name=tech_item["name"],
+                category=tech_item["category"],
+                confidence=tech_item.get("confidence", "HIGH"),
+                file_count=tech_item.get("file_count", 0),
+                evidence=tech_item.get("evidence", []),
+            )
+            db.add(pt)
             
         # Stage 3: Code Parsing & Metrics Extraction
         job.current_stage = "Parsing source files and extracting metrics"
@@ -252,12 +269,32 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
     comment_lines = cm.comment_lines if cm else 0
     code_lines = cm.code_lines if cm else 0
 
-    # Tech stack from languages & manifests
-    scanned_mock = [{"filename": f.filename, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path)} for f in files]
-    tech_stack = detect_technologies_from_evidence(Path("."), scanned_mock)
+    # Tech stack from DB or fallback scan
+    db_techs = db.query(ProjectTechnology).filter(ProjectTechnology.project_id == project.id).all()
+    if db_techs:
+        tech_list = [
+            {
+                "name": pt.name,
+                "category": pt.category,
+                "confidence": pt.confidence,
+                "file_count": pt.file_count,
+                "evidence": pt.evidence if isinstance(pt.evidence, list) else [str(pt.evidence)]
+            }
+            for pt in db_techs
+        ]
+    else:
+        scanned_mock = [{"filename": f.filename, "rel_path": f.path, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path)} for f in files]
+        tech_list = detect_technologies(scanned_mock)
+
+    tech_categories = set(t["category"] for t in tech_list)
+    technology_stack_payload = {
+        "technologies": tech_list,
+        "total_count": len(tech_list),
+        "category_count": len(tech_categories)
+    }
     
     # Compute strengths & improvements
-    strengths = compute_evidence_based_strengths(cm, tech_stack) if cm else []
+    strengths = compute_evidence_based_strengths(cm, tech_list) if cm else []
     improvements = compute_evidence_based_improvements(cm, failed_files_count) if cm else []
     
     # Unimplemented scores interface (returns nulls)
@@ -279,7 +316,7 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
             "documentation_files": doc_files_count,
             "test_files": test_files_count,
         },
-        "technology_stack": tech_stack,
+        "technology_stack": technology_stack_payload,
         "code_metrics": {
             "loc": total_loc,
             "code_lines": code_lines,

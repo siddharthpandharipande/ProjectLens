@@ -23,5 +23,6 @@ class Project(Base):
 
     files: Mapped[List["ProjectFile"]] = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
     languages: Mapped[List["ProjectLanguage"]] = relationship("ProjectLanguage", back_populates="project", cascade="all, delete-orphan")
+    technologies: Mapped[List["ProjectTechnology"]] = relationship("ProjectTechnology", back_populates="project", cascade="all, delete-orphan")
     code_metrics: Mapped[Optional["CodeMetric"]] = relationship("CodeMetric", back_populates="project", uselist=False, cascade="all, delete-orphan")
     analysis_jobs: Mapped[List["AnalysisJob"]] = relationship("AnalysisJob", back_populates="project", cascade="all, delete-orphan")

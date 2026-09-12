@@ -17,8 +17,16 @@ export interface ProjectSummary {
 
 export interface Technology {
   name: string;
-  category: 'language' | 'framework' | 'database' | 'tool';
-  evidence: string;
+  category: string;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  file_count?: number;
+  evidence: string | string[];
+}
+
+export interface TechnologyStack {
+  technologies: Technology[];
+  total_count: number;
+  category_count: number;
 }
 
 export interface CodeMetrics {
@@ -62,7 +70,7 @@ export interface AnalysisMeta {
 export interface ProjectOverview {
   project: Project;
   summary: ProjectSummary;
-  technology_stack: Technology[];
+  technology_stack: TechnologyStack | Technology[];
   code_metrics: CodeMetrics;
   evaluation: Evaluation;
   strengths: Strength[];

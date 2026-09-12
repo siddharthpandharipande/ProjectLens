@@ -33,8 +33,15 @@ class ProjectSummarySchema(BaseModel):
 
 class TechnologySchema(BaseModel):
     name: str
-    category: str  # language, framework, database, tool
-    evidence: str
+    category: str
+    confidence: str = "HIGH"
+    file_count: int = 0
+    evidence: List[str] = []
+
+class TechnologyStackSchema(BaseModel):
+    technologies: List[TechnologySchema] = []
+    total_count: int = 0
+    category_count: int = 0
 
 class CodeMetricsSchema(BaseModel):
     loc: int
@@ -72,7 +79,7 @@ class AnalysisMetaSchema(BaseModel):
 class ProjectOverviewResponse(BaseModel):
     project: ProjectBase
     summary: ProjectSummarySchema
-    technology_stack: List[TechnologySchema]
+    technology_stack: TechnologyStackSchema
     code_metrics: CodeMetricsSchema
     evaluation: EvaluationSchema
     strengths: List[StrengthSchema]
