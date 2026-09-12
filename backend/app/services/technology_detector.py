@@ -260,6 +260,10 @@ def detect_technologies(
     if "llama-index" in combined_manifest_str or "llamaindex" in all_imports:
         file_cnt = import_counts.get("LlamaIndex", "AI / ML", "MEDIUM", ["LlamaIndex data framework detected"])
 
+    if "cuda" in combined_manifest_str or "cupy" in combined_manifest_str or "cupy" in all_imports or "numba" in all_imports or "triton" in all_imports:
+        file_cnt = import_counts.get("cupy", 0) or import_counts.get("triton", 0)
+        add_tech("CUDA Acceleration", "AI / ML", "HIGH" if file_cnt > 0 else "MEDIUM", ["CUDA / GPU compute library detected in project dependencies/imports"], file_count=file_cnt)
+
     if "mediapipe" in combined_manifest_str or "mediapipe" in all_imports:
         file_cnt = import_counts.get("mediapipe", 0)
         add_tech("MediaPipe", "AI / ML", "HIGH" if file_cnt > 0 else "MEDIUM", ["MediaPipe ML framework detected"], file_count=file_cnt)
