@@ -1,7 +1,9 @@
 import uuid
-from sqlalchemy import String, Integer, Float, ForeignKey
+from typing import Optional
+from sqlalchemy import String, Integer, Float, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
+
 
 class CodeMetric(Base):
     __tablename__ = "code_metrics"
@@ -19,5 +21,7 @@ class CodeMetric(Base):
     maximum_complexity: Mapped[float] = mapped_column(Float, default=0.0)
     test_file_count: Mapped[int] = mapped_column(Integer, default=0)
     documentation_file_count: Mapped[int] = mapped_column(Integer, default=0)
+    git_history_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="code_metrics")
+

@@ -1,17 +1,35 @@
 import React from 'react';
 import { AnalysisMeta } from '../../types/overview';
-import { FileCheck, FileX, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileCheck, FileX, CheckCircle, AlertCircle, RotateCw } from 'lucide-react';
 
 interface AnalysisStatusProps {
   analysis: AnalysisMeta;
+  onReanalyze?: () => void;
+  isReanalyzing?: boolean;
 }
 
-export const AnalysisStatus: React.FC<AnalysisStatusProps> = ({ analysis }) => {
+export const AnalysisStatus: React.FC<AnalysisStatusProps> = ({
+  analysis,
+  onReanalyze,
+  isReanalyzing = false,
+}) => {
   return (
     <div className="bg-bg-card border border-border rounded-xl p-6">
-      <h3 className="font-headline font-bold text-base text-white mb-4">
-        Analysis Metadata & Status
-      </h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-headline font-bold text-base text-white">
+          Analysis Metadata & Status
+        </h3>
+        {onReanalyze && (
+          <button
+            onClick={onReanalyze}
+            disabled={isReanalyzing}
+            className="flex items-center gap-2 py-1.5 px-3 rounded bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 text-xs font-semibold transition-all disabled:opacity-50"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isReanalyzing ? 'animate-spin' : ''}`} />
+            {isReanalyzing ? 'Re-analyzing...' : 'Re-Analyze Codebase'}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-bg-main border border-border">

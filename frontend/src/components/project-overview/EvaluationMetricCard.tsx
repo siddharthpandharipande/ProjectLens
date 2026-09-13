@@ -8,6 +8,7 @@ interface EvaluationMetricCardProps {
   strokeColor?: string;
   detail?: EvaluationDetail | null;
   subtext?: string;
+  onOpenDetailModal?: () => void;
 }
 
 export const EvaluationMetricCard: React.FC<EvaluationMetricCardProps> = ({
@@ -15,7 +16,8 @@ export const EvaluationMetricCard: React.FC<EvaluationMetricCardProps> = ({
   score,
   strokeColor = '#3157D5',
   detail,
-  subtext
+  subtext,
+  onOpenDetailModal
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -57,6 +59,18 @@ export const EvaluationMetricCard: React.FC<EvaluationMetricCardProps> = ({
           <p className="text-[11px] text-zinc-400 mt-2 line-clamp-1">
             {subtext || (evidenceList.length > 0 ? evidenceList[0] : statusLabel)}
           </p>
+
+          {onOpenDetailModal && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenDetailModal();
+              }}
+              className="mt-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              View Deep Analysis &rarr;
+            </button>
+          )}
         </div>
 
         <div className="w-12 h-12 relative flex items-center justify-center flex-shrink-0">

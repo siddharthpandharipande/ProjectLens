@@ -20,6 +20,8 @@ class Project(Base):
     status: Mapped[str] = mapped_column(String(50), default="uploaded", nullable=False)
     source_type: Mapped[str] = mapped_column(String(50), default="zip", nullable=False)
     original_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    git_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
 
     files: Mapped[List["ProjectFile"]] = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
     languages: Mapped[List["ProjectLanguage"]] = relationship("ProjectLanguage", back_populates="project", cascade="all, delete-orphan")

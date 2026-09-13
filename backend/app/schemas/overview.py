@@ -17,6 +17,17 @@ class ProjectUploadResponse(BaseModel):
     status: str
     message: str
 
+class RepositorySubmitRequest(BaseModel):
+    git_url: Optional[str] = None
+    repository_url: Optional[str] = None
+    student_name: Optional[str] = "Alex Chen"
+    course: Optional[str] = "CS499 Final Project"
+
+    @property
+    def url(self) -> str:
+        return self.git_url or self.repository_url or ""
+
+
 class AnalysisStatusResponse(BaseModel):
     project_id: str
     status: str

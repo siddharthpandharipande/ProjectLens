@@ -36,14 +36,17 @@ def analyze_documentation_integrity(scanned_files: List[Dict[str, Any]]) -> Dict
     # Read README content for deeper inspection
     readme_content = ""
     if readme_files:
-        abs_path = readme_files[0].get("abs_path")
-        if abs_path and isinstance(abs_path, Path) and abs_path.exists():
-            try:
-                if abs_path.stat().st_size < 1_000_000:
-                    with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                        readme_content = f.read()
-            except Exception:
-                pass
+        readme_content = readme_files[0].get("content") or readme_files[0].get("readme_content") or ""
+        if not readme_content:
+            abs_path = readme_files[0].get("abs_path")
+            if abs_path and isinstance(abs_path, Path) and abs_path.exists():
+                try:
+                    if abs_path.stat().st_size < 1_000_000:
+                        with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                            readme_content = f.read()
+                except Exception:
+                    pass
+
 
     content_lower = readme_content.lower()
 

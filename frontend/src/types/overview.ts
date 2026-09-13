@@ -4,7 +4,15 @@ export interface Project {
   student_name: string;
   course: string;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
+  source_type?: 'zip' | 'git_url';
+  git_url?: string | null;
   created_at?: string | null;
+}
+
+export interface RepositorySubmitRequest {
+  git_url: string;
+  student_name?: string;
+  course?: string;
 }
 
 export interface ProjectSummary {
@@ -108,3 +116,4 @@ export interface UploadResponse {
   status: string;
   message: string;
 }
+

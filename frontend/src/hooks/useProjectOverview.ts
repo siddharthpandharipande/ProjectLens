@@ -32,10 +32,23 @@ export function useProjectOverview(initialProjectId?: string | null) {
     }
   }, []);
 
+  const pollCountRef = useRef<number>(0);
+
   const pollStatus = useCallback((id: string) => {
     stopPolling();
+    pollCountRef.current = 0;
 
     pollTimerRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      
+      // Stop polling after max 150 attempts (~3 minutes) to prevent infinite loops
+      if (pollCountRef.current > 150) {
+        stopPolling();
+        setIsReanalyzing(false);
+        setError('Analysis timed out. Please retry analysis.');
+        return;
+      }
+
       try {
         const statusData = await projectService.getAnalysisStatus(id);
         setStatus(statusData);

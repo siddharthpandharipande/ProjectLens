@@ -21,5 +21,7 @@ class ProjectFile(Base):
     lines_blank: Mapped[int] = mapped_column(Integer, default=0)
     parse_status: Mapped[str] = mapped_column(String(50), default="success")  # success, failed, skipped
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="files")
+

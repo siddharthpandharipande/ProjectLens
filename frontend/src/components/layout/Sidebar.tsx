@@ -1,21 +1,33 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  Activity,
-  Dna,
+  Code2,
+  GitCompare,
+  FileCheck,
+  Clock,
+  Cpu,
+  Sparkles,
   Mic,
-  FileText,
-  Users,
-  Palette,
-  PlusCircle,
   ShieldCheck,
+  FileText,
+  PlusCircle
 } from 'lucide-react';
 
 interface SidebarProps {
   onOpenUpload: () => void;
+  onSelectFutureModule: (moduleId: string) => void;
+  onOpenCodeQuality?: () => void;
+  onOpenSimilarity?: () => void;
+  onOpenDocumentation?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenUpload }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  onOpenUpload,
+  onSelectFutureModule,
+  onOpenCodeQuality,
+  onOpenSimilarity,
+  onOpenDocumentation
+}) => {
   return (
     <aside className="w-[280px] bg-bg-sidebar border-r border-border flex flex-col p-4 shrink-0 h-screen sticky top-0">
       {/* Brand Logo */}
@@ -40,10 +52,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUpload }) => {
 
       {/* Navigation Groups */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-1">
-        {/* Student Module */}
+        {/* Overview Section */}
         <div>
           <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-3 mb-2 font-medium">
-            Student Module
+            Overview
           </div>
           <ul className="space-y-1">
             <li>
@@ -54,102 +66,163 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUpload }) => {
                 Project Overview
               </button>
             </li>
+          </ul>
+        </div>
 
-            {/* Pluggable modules explicitly marked as coming soon / disabled */}
+        {/* Analysis Section */}
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-3 mb-2 font-medium">
+            Analysis
+          </div>
+          <ul className="space-y-1">
+            {/* Active Analysis Modules */}
             <li>
               <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
-                title="AI Signals module will plug in here"
+                onClick={onOpenCodeQuality}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-300 hover:text-white text-sm font-medium hover:bg-[#1E212B] transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <Activity className="w-4 h-4" />
-                  AI Signals
+                  <Code2 className="w-4 h-4 text-indigo-400" />
+                  Code Quality
                 </div>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Soon</span>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                  Active
+                </span>
               </button>
             </li>
 
             <li>
               <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
-                title="Innovation DNA module will plug in here"
+                onClick={onOpenSimilarity}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-300 hover:text-white text-sm font-medium hover:bg-[#1E212B] transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <Dna className="w-4 h-4" />
+                  <GitCompare className="w-4 h-4 text-amber-400" />
+                  Code Similarity
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                  Active
+                </span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={onOpenDocumentation}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-300 hover:text-white text-sm font-medium hover:bg-[#1E212B] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <FileCheck className="w-4 h-4 text-emerald-400" />
+                  Documentation
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                  Active
+                </span>
+              </button>
+            </li>
+
+            {/* Future Modules */}
+            <li>
+              <button
+                onClick={() => onSelectFutureModule('git')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="Git Development Analysis (Phase 6)"
+              >
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                  Git Development
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 6
+                </span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => onSelectFutureModule('ai_assistance')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="AI Assistance Signals (Phase 7)"
+              >
+                <div className="flex items-center gap-3">
+                  <Cpu className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 transition-colors" />
+                  AI Assistance
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 7
+                </span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => onSelectFutureModule('innovation')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="Innovation DNA Engine (Phase 8)"
+              >
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-4 h-4 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
                   Innovation DNA
                 </div>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Soon</span>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 8
+                </span>
               </button>
             </li>
+          </ul>
+        </div>
 
+        {/* Assessment Section */}
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-3 mb-2 font-medium">
+            Assessment
+          </div>
+          <ul className="space-y-1">
             <li>
               <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
-                title="Viva Voice Q&A module will plug in here"
+                onClick={() => onSelectFutureModule('viva')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="Viva Voice Q&A (Phase 9)"
               >
                 <div className="flex items-center gap-3">
-                  <Mic className="w-4 h-4" />
+                  <Mic className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors" />
                   Viva Voice Q&A
                 </div>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Soon</span>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 9
+                </span>
               </button>
             </li>
 
             <li>
               <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
-                title="Final Evaluation module will plug in here"
+                onClick={() => onSelectFutureModule('final_eval')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="Final Evaluation Engine (Phase 10)"
               >
                 <div className="flex items-center gap-3">
-                  <FileText className="w-4 h-4" />
+                  <ShieldCheck className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
                   Final Evaluation
                 </div>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Soon</span>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 10
+                </span>
               </button>
             </li>
-          </ul>
-        </div>
 
-        {/* Faculty Module */}
-        <div>
-          <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-3 mb-2 font-medium">
-            Faculty Module
-          </div>
-          <ul className="space-y-1">
             <li>
               <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
+                onClick={() => onSelectFutureModule('final_report')}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-200 text-sm font-medium hover:bg-[#1C1F28] transition-colors group"
+                title="Final Report Generator (Phase 11)"
               >
                 <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4" />
-                  Faculty Dashboard
+                  <FileText className="w-4 h-4 text-zinc-500 group-hover:text-blue-400 transition-colors" />
+                  Final Report
                 </div>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Soon</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        {/* Utilities */}
-        <div>
-          <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-3 mb-2 font-medium">
-            Utilities
-          </div>
-          <ul className="space-y-1">
-            <li>
-              <button
-                disabled
-                className="w-full flex items-center justify-between px-3 py-2 rounded-md text-zinc-500 text-sm font-medium cursor-not-allowed opacity-60 hover:bg-transparent"
-              >
-                <div className="flex items-center gap-3">
-                  <Palette className="w-4 h-4" />
-                  Style Guide
-                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                  Phase 11
+                </span>
               </button>
             </li>
           </ul>

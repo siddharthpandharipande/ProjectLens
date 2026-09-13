@@ -3,6 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { UploadModal } from '../components/project-overview/UploadModal';
+import { CodeQualityDetailModal } from '../components/project-overview/CodeQualityDetailModal';
+import { SimilarityDetailModal } from '../components/project-overview/SimilarityDetailModal';
+import { DocumentationDetailModal } from '../components/project-overview/DocumentationDetailModal';
+import { FutureModuleModal } from '../components/project-overview/FutureModuleModal';
 import { OverallScoreCard } from '../components/project-overview/OverallScoreCard';
 import { EvaluationMetricCard } from '../components/project-overview/EvaluationMetricCard';
 import { TechnologyStack } from '../components/project-overview/TechnologyStack';
@@ -15,6 +19,10 @@ import { UploadCloud, AlertCircle, RefreshCw, Layers } from 'lucide-react';
 
 export const ProjectOverviewPage: React.FC = () => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isCodeQualityOpen, setIsCodeQualityOpen] = useState(false);
+  const [isSimilarityOpen, setIsSimilarityOpen] = useState(false);
+  const [isDocumentationOpen, setIsDocumentationOpen] = useState(false);
+  const [selectedFutureModuleId, setSelectedFutureModuleId] = useState<string | null>(null);
   const {
     projectId,
     overview,
@@ -29,7 +37,13 @@ export const ProjectOverviewPage: React.FC = () => {
   return (
     <div className="flex bg-bg-main min-h-screen">
       {/* Sidebar */}
-      <Sidebar onOpenUpload={() => setIsUploadOpen(true)} />
+      <Sidebar
+        onOpenUpload={() => setIsUploadOpen(true)}
+        onSelectFutureModule={(id) => setSelectedFutureModuleId(id)}
+        onOpenCodeQuality={() => setIsCodeQualityOpen(true)}
+        onOpenSimilarity={() => setIsSimilarityOpen(true)}
+        onOpenDocumentation={() => setIsDocumentationOpen(true)}
+      />
 
       {/* Main Content Pane */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -153,19 +167,22 @@ export const ProjectOverviewPage: React.FC = () => {
                     score={overview.evaluation.technical_execution}
                     detail={overview.evaluation.technical_execution_detail}
                     strokeColor="#3157D5"
+                    onOpenDetailModal={() => setIsCodeQualityOpen(true)}
                   />
                   <EvaluationMetricCard
                     title="Originality"
                     score={overview.evaluation.originality}
                     detail={overview.evaluation.originality_detail}
-                    subtext="Requires project comparison data"
+                    subtext="Click to compare with baseline projects"
                     strokeColor="#E9785B"
+                    onOpenDetailModal={() => setIsSimilarityOpen(true)}
                   />
                   <EvaluationMetricCard
                     title="Documentation Integrity"
                     score={overview.evaluation.documentation_integrity}
                     detail={overview.evaluation.documentation_integrity_detail}
                     strokeColor="#10B981"
+                    onOpenDetailModal={() => setIsDocumentationOpen(true)}
                   />
                   <EvaluationMetricCard
                     title="Development Process"
@@ -194,18 +211,48 @@ export const ProjectOverviewPage: React.FC = () => {
               </div>
 
               {/* Analysis Metadata & Status */}
-              <AnalysisStatusComponent analysis={overview.analysis} />
+              <AnalysisStatusComponent
+                analysis={overview.analysis}
+                onReanalyze={triggerReanalyze}
+                isReanalyzing={isReanalyzing}
+              />
             </motion.div>
           )}
         </main>
       </div>
 
-      {/* Upload Modal */}
+      {/* Modals */}
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={handleUploadSuccess}
       />
+
+      <FutureModuleModal
+        isOpen={!!selectedFutureModuleId}
+        onClose={() => setSelectedFutureModuleId(null)}
+        moduleId={selectedFutureModuleId}
+      />
+
+      {projectId && (
+        <>
+          <CodeQualityDetailModal
+            isOpen={isCodeQualityOpen}
+            onClose={() => setIsCodeQualityOpen(false)}
+            projectId={projectId}
+          />
+          <SimilarityDetailModal
+            isOpen={isSimilarityOpen}
+            onClose={() => setIsSimilarityOpen(false)}
+            projectId={projectId}
+          />
+          <DocumentationDetailModal
+            isOpen={isDocumentationOpen}
+            onClose={() => setIsDocumentationOpen(false)}
+            projectId={projectId}
+          />
+        </>
+      )}
     </div>
   );
 };

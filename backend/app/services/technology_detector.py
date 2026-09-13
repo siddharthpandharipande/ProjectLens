@@ -48,13 +48,33 @@ def parse_imports_from_source_files(scanned_files: List[Dict[str, Any]]) -> Tupl
                 for m_from, m_req in matches:
                     raw_pkg = m_from or m_req
                     if raw_pkg and not raw_pkg.startswith("."):
-                        # Extract top-level package or scoped package (@org/pkg)
                         parts = raw_pkg.split("/")
                         if raw_pkg.startswith("@") and len(parts) >= 2:
                             pkg = f"{parts[0]}/{parts[1]}".lower()
                         else:
                             pkg = parts[0].lower()
                         file_modules.add(pkg)
+
+            elif lang == "Java":
+                java_matches = re.findall(r'import\s+([a-zA-Z0-9_\.]+);', content)
+                for jm in java_matches:
+                    file_modules.add(jm.lower())
+
+            elif lang == "Go":
+                go_matches = re.findall(r'["\']([a-zA-Z0-9_\-\./]+)["\']', content)
+                for gm in go_matches:
+                    if "/" in gm:
+                        file_modules.add(gm.split("/")[-1].lower())
+
+            elif lang == "C#":
+                cs_matches = re.findall(r'using\s+([a-zA-Z0-9_\.]+);', content)
+                for csm in cs_matches:
+                    file_modules.add(csm.lower())
+
+            elif lang in {"C", "C++"}:
+                cpp_matches = re.findall(r'#include\s+[<"]([^>"]+)[>"]', content)
+                for cpp_m in cpp_matches:
+                    file_modules.add(cpp_m.split("/")[0].lower())
 
             for mod in file_modules:
                 imported_modules[mod] = imported_modules.get(mod, 0) + 1
@@ -257,8 +277,9 @@ def detect_technologies(
         file_cnt = import_counts.get("langchain", 0)
         add_tech("LangChain", "AI / ML", "HIGH" if file_cnt > 0 else "MEDIUM", ["LangChain LLM framework detected"], file_count=file_cnt)
 
-    if "llama-index" in combined_manifest_str or "llamaindex" in all_imports:
-        file_cnt = import_counts.get("LlamaIndex", "AI / ML", "MEDIUM", ["LlamaIndex data framework detected"])
+    if "llama-index" in combined_manifest_str or "llamaindex" in all_imports or "llama_index" in all_imports:
+        file_cnt = import_counts.get("llamaindex", 0) or import_counts.get("llama_index", 0)
+        add_tech("LlamaIndex", "AI / ML", "HIGH" if file_cnt > 0 else "MEDIUM", ["LlamaIndex data framework detected"], file_count=file_cnt)
 
     if "cuda" in combined_manifest_str or "cupy" in combined_manifest_str or "cupy" in all_imports or "numba" in all_imports or "triton" in all_imports:
         file_cnt = import_counts.get("cupy", 0) or import_counts.get("triton", 0)

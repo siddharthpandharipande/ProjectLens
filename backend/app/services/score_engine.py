@@ -3,15 +3,20 @@ from app.models.code_metric import CodeMetric
 from app.services.technical_execution_analyzer import analyze_technical_execution
 from app.services.documentation_analyzer import analyze_documentation_integrity
 from app.services.git_analyzer import analyze_development_process
+from app.services.originality_analyzer import analyze_originality
 
 def calculate_evaluation_scores(
     cm: Optional[CodeMetric],
     scanned_files: List[Dict[str, Any]],
-    extracted_dir: Any
+    extracted_dir: Any,
+    tech_stack: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Computes deterministic, evidence-backed evaluation scores for all 5 dimensions.
-    Zero hardcoded values. Unimplemented/unavailable modules return None with transparent status.
+    Computes deterministic, evidence-backed evaluation scores for all 4 core dimensions:
+    - Technical Execution
+    - Documentation Integrity
+    - Development Process
+    - Originality
     """
     file_types = [sf.get("file_type") for sf in scanned_files]
 
@@ -26,12 +31,9 @@ def calculate_evaluation_scores(
     # 3. Development Process
     git_res = analyze_development_process(extracted_dir)
 
-    # 4. Originality (Pending comparison data)
-    orig_res = {
-        "score": None,
-        "status": "Pending",
-        "evidence": ["Requires project comparison data"],
-        "breakdown": {}
+    # 4. Originality Evaluation
+    orig_res = analyze_originality(cm, scanned_files, tech_stack or [], doc_res) if cm else {
+        "score": None, "status": "Pending", "evidence": ["Code metrics pending analysis."], "breakdown": {}
     }
 
     # 5. Overall Score (Derived transparently from available numerical scores)
@@ -42,6 +44,8 @@ def calculate_evaluation_scores(
         valid_scores.append(doc_res["score"])
     if git_res.get("score") is not None:
         valid_scores.append(git_res["score"])
+    if orig_res.get("score") is not None:
+        valid_scores.append(orig_res["score"])
 
     if valid_scores:
         overall_val = round(sum(valid_scores) / len(valid_scores), 1)

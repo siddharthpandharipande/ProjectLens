@@ -71,4 +71,4 @@ def test_overall_score_calculation(tmp_path: Path):
 
     assert res["overall_score"] is not None
     assert "Based on" in res["overall_status"]
-    assert res["originality"] is None
+    assert res["originality"] is not None

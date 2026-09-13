@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
@@ -16,10 +17,12 @@ from app.services.technology_detector import (
     detect_technologies,
 )
 from app.services.code_analyzer import analyze_single_file, detect_test_coverage
+from app.services.git_analyzer import analyze_development_process
 from app.services.score_engine import calculate_evaluation_scores
 from app.services.strength_detector import detect_strengths
 from app.services.improvement_detector import detect_improvements
 from app.config import analysis_thresholds as thresholds
+
 
 def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job: AnalysisJob):
     """
@@ -93,12 +96,22 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
         failed_files_count = 0
         
         total_files = len(scanned_files)
+        files_to_add = []
+        last_committed_prog = 50
         
         for idx, sf in enumerate(scanned_files):
             file_metrics = analyze_single_file(
                 sf["abs_path"], sf["language"], sf["file_type"]
             )
             
+            doc_content = None
+            if sf["file_type"] == "documentation":
+                try:
+                    if sf["abs_path"].exists() and sf["abs_path"].stat().st_size < 500_000:
+                        doc_content = sf["abs_path"].read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    pass
+
             pf = ProjectFile(
                 project_id=project.id,
                 path=sf["rel_path"],
@@ -113,8 +126,9 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
                 lines_blank=file_metrics["lines_blank"],
                 parse_status=file_metrics["parse_status"],
                 error_message=file_metrics["error_message"],
+                content=doc_content,
             )
-            db.add(pf)
+            files_to_add.append(pf)
             
             if file_metrics["parse_status"] == "failed":
                 failed_files_count += 1
@@ -136,20 +150,32 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
             elif sf["file_type"] == "documentation":
                 doc_file_count += 1
                 
-            # Update progress
-            if total_files > 0 and idx % 5 == 0:
+            # Update progress on 10% steps
+            if total_files > 0:
                 prog = 50 + int((idx / total_files) * 35)
-                job.progress = min(prog, 85)
-                db.commit()
+                if prog >= last_committed_prog + 10 and prog < 85:
+                    job.progress = prog
+                    db.commit()
+                    last_committed_prog = prog
+
+        if files_to_add:
+            db.add_all(files_to_add)
+            db.commit()
 
         # Stage 4: Overview Aggregation
         job.current_stage = "Aggregating code overview metrics"
         job.progress = 90
         db.commit()
+
         
         avg_complexity = round(sum(complexities) / len(complexities), 1) if complexities else 1.0
         max_complexity = round(max(complexities), 1) if complexities else 1.0
         
+        # Analyze Git repository commit history before temp cleanup
+        import json
+        git_res = analyze_development_process(extracted_dir)
+        git_json_str = json.dumps(git_res) if git_res else None
+
         cm = CodeMetric(
             project_id=project.id,
             total_loc=total_loc,
@@ -163,6 +189,7 @@ def run_project_analysis(db: Session, project: Project, extracted_dir: Path, job
             maximum_complexity=max_complexity,
             test_file_count=test_file_count,
             documentation_file_count=doc_file_count,
+            git_history_data=git_json_str,
         )
         db.add(cm)
         
@@ -271,7 +298,7 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
     comment_lines = cm.comment_lines if cm else 0
     code_lines = cm.code_lines if cm else 0
 
-    scanned_mock = [{"filename": f.filename, "rel_path": f.path, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path)} for f in files]
+    scanned_files_list = [{"filename": f.filename, "rel_path": f.path, "file_type": f.file_type, "language": f.language, "abs_path": Path(f.path), "content": f.content} for f in files]
 
     # Tech stack from DB or fallback scan
     db_techs = db.query(ProjectTechnology).filter(ProjectTechnology.project_id == project.id).all()
@@ -287,7 +314,7 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
             for pt in db_techs
         ]
     else:
-        tech_list = detect_technologies(scanned_mock)
+        tech_list = detect_technologies(scanned_files_list)
 
     tech_categories = set(t["category"] for t in tech_list)
     technology_stack_payload = {
@@ -297,16 +324,38 @@ def build_project_overview_response(db: Session, project: Project) -> Dict[str, 
     }
     
     # 1. Evaluation Scores Engine
-    scores_payload = calculate_evaluation_scores(cm, scanned_mock, Path("."))
+    scores_payload = calculate_evaluation_scores(cm, scanned_files_list, Path("."), tech_list)
+
+    # Restore stored Git history analysis if present
+    if cm and cm.git_history_data:
+        try:
+            stored_git_res = json.loads(cm.git_history_data)
+            if stored_git_res:
+                scores_payload["development_process_detail"] = stored_git_res
+                scores_payload["development_process"] = stored_git_res.get("score")
+                
+                # Recalculate overall score with restored git score
+                valid_scores = [
+                    scores_payload.get("technical_execution"),
+                    scores_payload.get("documentation_integrity"),
+                    stored_git_res.get("score"),
+                    scores_payload.get("originality"),
+                ]
+                nums = [s for s in valid_scores if s is not None]
+                if nums:
+                    scores_payload["overall_score"] = round(sum(nums) / len(nums), 1)
+                    scores_payload["overall_status"] = f"Based on {len(nums)} of 4 evaluation dimensions"
+        except Exception:
+            pass
 
     # 2. Coverage Detection
-    coverage_text = detect_test_coverage(scanned_mock)
+    coverage_text = detect_test_coverage(scanned_files_list)
 
     # 3. Compute Evidence-Backed Strengths & Improvements
     doc_detail = scores_payload.get("documentation_integrity_detail", {})
     git_detail = scores_payload.get("development_process_detail", {})
     
-    strengths = detect_strengths(cm, tech_list, doc_detail, git_detail, scanned_mock)
+    strengths = detect_strengths(cm, tech_list, doc_detail, git_detail, scanned_files_list)
     improvements = detect_improvements(cm, failed_files_count, doc_detail, git_detail, coverage_text)
 
     return {
