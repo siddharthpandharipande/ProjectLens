@@ -1,0 +1,514 @@
+"""
+analyzer.py
+
+Safe, non-executing source code analyzer using:
+1. Python's built-in ast module + Radon for Python (deep AST, cyclomatic complexity, maintainability).
+2. Tree-sitter for JavaScript, TypeScript, and Java (structural AST without arbitrary execution).
+3. Robust line and lexical analysis for other languages.
+"""
+
+import ast
+import os
+import re
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
+
+import radon.raw
+import radon.complexity
+import radon.metrics
+
+# Optional Tree-sitter dependencies
+try:
+    from tree_sitter import Language, Parser
+    import tree_sitter_javascript
+    import tree_sitter_java
+
+    JS_LANG = Language(tree_sitter_javascript.language())
+    JAVA_LANG = Language(tree_sitter_java.language())
+    TREE_SITTER_AVAILABLE = True
+except Exception:
+    TREE_SITTER_AVAILABLE = False
+    JS_LANG = None
+    JAVA_LANG = None
+
+
+class CodeQualityAnalyzer:
+    """
+    Static code quality analyzer that inspects code safely without importing
+    or compiling student projects.
+    """
+
+    MAX_FILE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB per file limit
+
+    @classmethod
+    def read_file_safely(cls, file_path: Path) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Read source file contents safely with size limits and encoding fallbacks.
+        Returns: (content_str, error_message)
+        """
+        if not file_path.exists():
+            return None, f"File does not exist on disk: {file_path}"
+
+        try:
+            size = file_path.stat().st_size
+            if size > cls.MAX_FILE_SIZE_BYTES:
+                return None, f"File size ({size} bytes) exceeds maximum analyzable limit of {cls.MAX_FILE_SIZE_BYTES} bytes."
+
+            # Attempt UTF-8 first, fallback to Latin-1
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                return content, None
+            except UnicodeDecodeError:
+                content = file_path.read_text(encoding="latin-1")
+                return content, None
+        except Exception as e:
+            return None, f"Failed to read file: {str(e)}"
+
+    @classmethod
+    def analyze_file(
+        cls,
+        file_path: Path,
+        relative_path: str,
+        language: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Dispatch analysis based on detected programming language.
+        """
+        lang = language or "Unknown"
+
+        if lang == "Python":
+            return cls.analyze_python(file_path, relative_path)
+        elif lang in ("JavaScript", "TypeScript", "Java") and TREE_SITTER_AVAILABLE:
+            return cls.analyze_treesitter(file_path, relative_path, lang)
+        else:
+            return cls.analyze_generic(file_path, relative_path, lang)
+
+    # ─── Python Analysis (AST + Radon) ────────────────────────────────────────
+
+    @classmethod
+    def analyze_python(cls, file_path: Path, relative_path: str) -> Dict[str, Any]:
+        """
+        Analyze Python code using Python's ast module and Radon.
+        Extracts functions, classes, imports, docstrings, nesting depth, CC, and MI.
+        """
+        content, read_error = cls.read_file_safely(file_path)
+
+        result: Dict[str, Any] = {
+            "relative_path": relative_path,
+            "language": "Python",
+            "loc": 0,
+            "sloc": 0,
+            "comments": 0,
+            "blank": 0,
+            "functions_count": 0,
+            "classes_count": 0,
+            "function_names": [],
+            "class_names": [],
+            "imports": [],
+            "max_nesting_depth": None,
+            "deepest_nesting_line": None,
+            "avg_complexity": None,
+            "max_complexity": None,
+            "maintainability_index": None,
+            "has_syntax_error": False,
+            "syntax_error_details": None,
+            "syntax_error_line": None,
+            "complexity_blocks": [],
+            "functions_metadata": [],
+            "classes_metadata": [],
+        }
+
+        if read_error or content is None:
+            result["has_syntax_error"] = True
+            result["syntax_error_details"] = read_error or "Unable to read file content."
+            return result
+
+        # 1. Radon Raw line metrics
+        try:
+            raw_metrics = radon.raw.analyze(content)
+            result["loc"] = raw_metrics.loc
+            result["sloc"] = raw_metrics.sloc
+            result["comments"] = raw_metrics.comments + raw_metrics.multi
+            result["blank"] = raw_metrics.blank
+        except Exception:
+            # Fallback simple line counter
+            lines = content.splitlines()
+            result["loc"] = len(lines)
+            result["blank"] = sum(1 for line in lines if not line.strip())
+            result["comments"] = sum(1 for line in lines if line.strip().startswith("#"))
+            result["sloc"] = max(result["loc"] - result["blank"] - result["comments"], 0)
+
+        # 2. Python AST Parsing
+        try:
+            tree = ast.parse(content, filename=relative_path)
+
+            functions_meta = []
+            classes_meta = []
+            function_names = []
+            class_names = []
+            imports_list = []
+
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    name = node.name
+                    function_names.append(name)
+                    doc = ast.get_docstring(node)
+                    start_line = node.lineno
+                    end_line = getattr(node, "end_lineno", start_line)
+                    fn_sloc = max(end_line - start_line + 1, 1)
+
+                    functions_meta.append({
+                        "name": name,
+                        "lineno": start_line,
+                        "end_lineno": end_line,
+                        "sloc": fn_sloc,
+                        "has_docstring": bool(doc),
+                    })
+
+                elif isinstance(node, ast.ClassDef):
+                    name = node.name
+                    class_names.append(name)
+                    doc = ast.get_docstring(node)
+                    start_line = node.lineno
+                    end_line = getattr(node, "end_lineno", start_line)
+
+                    classes_meta.append({
+                        "name": name,
+                        "lineno": start_line,
+                        "end_lineno": end_line,
+                        "has_docstring": bool(doc),
+                    })
+
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        imports_list.append(alias.name)
+
+                elif isinstance(node, ast.ImportFrom):
+                    mod = node.module or ""
+                    for alias in node.names:
+                        imports_list.append(f"{mod}.{alias.name}" if mod else alias.name)
+
+            result["functions_count"] = len(function_names)
+            result["classes_count"] = len(class_names)
+            result["function_names"] = function_names[:100]  # bounded list
+            result["class_names"] = class_names[:100]
+            result["imports"] = sorted(list(set(imports_list)))[:100]
+            result["functions_metadata"] = functions_meta
+            result["classes_metadata"] = classes_meta
+
+            # Calculate maximum nesting depth
+            max_depth, deepest_line = cls._calculate_python_nesting_depth(tree)
+            result["max_nesting_depth"] = max_depth
+            result["deepest_nesting_line"] = deepest_line
+
+        except SyntaxError as e:
+            result["has_syntax_error"] = True
+            result["syntax_error_line"] = e.lineno
+            result["syntax_error_details"] = f"SyntaxError at line {e.lineno}, col {e.offset}: {e.msg}"
+            # Even with syntax error, return whatever lines we could count
+            return result
+        except Exception as e:
+            result["has_syntax_error"] = True
+            result["syntax_error_details"] = f"AST parse error: {str(e)}"
+            return result
+
+        # 3. Radon Cyclomatic Complexity
+        try:
+            cc_blocks = radon.complexity.cc_visit(content)
+            blocks_data = []
+            for b in cc_blocks:
+                rank_letter = getattr(b, "letter", None) or radon.complexity.cc_rank(b.complexity)
+                blocks_data.append({
+                    "name": b.name,
+                    "lineno": b.lineno,
+                    "endline": getattr(b, "endline", b.lineno),
+                    "complexity": b.complexity,
+                    "rank": rank_letter,
+                })
+
+            result["complexity_blocks"] = blocks_data
+            if blocks_data:
+                result["avg_complexity"] = round(sum(b["complexity"] for b in blocks_data) / len(blocks_data), 1)
+                result["max_complexity"] = max(b["complexity"] for b in blocks_data)
+            else:
+                result["avg_complexity"] = 1.0
+                result["max_complexity"] = 1
+        except Exception as e:
+            result["avg_complexity"] = None
+            result["max_complexity"] = None
+
+        # 4. Radon Maintainability Index
+        try:
+            mi = radon.metrics.mi_visit(content, multi=True)
+            result["maintainability_index"] = round(float(mi), 1)
+        except Exception:
+            result["maintainability_index"] = None
+
+        return result
+
+    @classmethod
+    def _calculate_python_nesting_depth(cls, root: ast.AST) -> Tuple[int, Optional[int]]:
+        """
+        Recursively compute the maximum nesting depth of control flow structures
+        (If, For, While, Try, With, FunctionDef, ClassDef).
+        """
+        max_depth = 0
+        deepest_line = None
+
+        # AST node types that increment compound nesting depth
+        NESTING_NODES = (
+            ast.If,
+            ast.For,
+            ast.AsyncFor,
+            ast.While,
+            ast.Try,
+            ast.With,
+            ast.AsyncWith,
+            ast.FunctionDef,
+            ast.AsyncFunctionDef,
+            ast.ClassDef,
+        )
+
+        def walk_node(node: ast.AST, current_depth: int):
+            nonlocal max_depth, deepest_line
+
+            is_nesting = isinstance(node, NESTING_NODES)
+            new_depth = current_depth + 1 if is_nesting else current_depth
+
+            if new_depth > max_depth:
+                max_depth = new_depth
+                deepest_line = getattr(node, "lineno", deepest_line)
+
+            for child in ast.iter_child_nodes(node):
+                walk_node(child, new_depth)
+
+        walk_node(root, 0)
+        return max_depth, deepest_line
+
+    # ─── Tree-sitter Analysis (JS, TS, Java) ──────────────────────────────────
+
+    @classmethod
+    def analyze_treesitter(
+        cls,
+        file_path: Path,
+        relative_path: str,
+        language: str,
+    ) -> Dict[str, Any]:
+        """
+        Analyze JavaScript, TypeScript, or Java using Tree-sitter.
+        Provides structural AST: functions, classes, imports, and syntax check.
+        Explicitly does NOT invent fake cyclomatic complexity or maintainability.
+        """
+        content, read_error = cls.read_file_safely(file_path)
+
+        result: Dict[str, Any] = {
+            "relative_path": relative_path,
+            "language": language,
+            "loc": 0,
+            "sloc": 0,
+            "comments": 0,
+            "blank": 0,
+            "functions_count": 0,
+            "classes_count": 0,
+            "function_names": [],
+            "class_names": [],
+            "imports": [],
+            "max_nesting_depth": None,
+            "deepest_nesting_line": None,
+            "avg_complexity": None,  # Not reliably supported by tree-sitter without language-specific CFG
+            "max_complexity": None,
+            "maintainability_index": None,
+            "has_syntax_error": False,
+            "syntax_error_details": None,
+            "syntax_error_line": None,
+            "complexity_blocks": [],
+            "functions_metadata": [],
+            "classes_metadata": [],
+        }
+
+        if read_error or content is None:
+            result["has_syntax_error"] = True
+            result["syntax_error_details"] = read_error or "Unable to read file content."
+            return result
+
+        # 1. Raw line metrics
+        lines = content.splitlines()
+        result["loc"] = len(lines)
+        result["blank"] = sum(1 for line in lines if not line.strip())
+
+        # Comments detection
+        comment_lines = 0
+        in_block_comment = False
+        for line in lines:
+            trimmed = line.strip()
+            if in_block_comment:
+                comment_lines += 1
+                if "*/" in trimmed:
+                    in_block_comment = False
+            elif trimmed.startswith("/*"):
+                comment_lines += 1
+                if "*/" not in trimmed[2:]:
+                    in_block_comment = True
+            elif trimmed.startswith("//") or trimmed.startswith("#"):
+                comment_lines += 1
+
+        result["comments"] = comment_lines
+        result["sloc"] = max(result["loc"] - result["blank"] - result["comments"], 0)
+
+        # 2. Tree-sitter parse
+        lang_obj = JAVA_LANG if language == "Java" else JS_LANG
+        if not lang_obj:
+            return result
+
+        try:
+            parser = Parser(lang_obj)
+            tree = parser.parse(content.encode("utf-8", errors="replace"))
+            root = tree.root_node
+
+            if root.has_error:
+                result["has_syntax_error"] = True
+                result["syntax_error_details"] = f"Tree-sitter syntax/parse errors detected in {language} source."
+
+            function_names = []
+            class_names = []
+            imports_list = []
+            functions_meta = []
+
+            # Nodes mapping
+            FN_TYPES = {
+                "function_declaration",
+                "method_definition",
+                "arrow_function",
+                "function_expression",
+                "method_declaration",
+                "constructor_declaration",
+            }
+            CLASS_TYPES = {
+                "class_declaration",
+                "class",
+                "interface_declaration",
+            }
+            IMPORT_TYPES = {
+                "import_statement",
+                "import_declaration",
+            }
+
+            def visit_node(node):
+                if node.type in FN_TYPES:
+                    fn_name = cls._extract_node_identifier(node, content) or "anonymous"
+                    function_names.append(fn_name)
+                    start_line = node.start_point.row + 1
+                    end_line = node.end_point.row + 1
+                    fn_sloc = max(end_line - start_line + 1, 1)
+
+                    functions_meta.append({
+                        "name": fn_name,
+                        "lineno": start_line,
+                        "end_lineno": end_line,
+                        "sloc": fn_sloc,
+                        "has_docstring": False,
+                    })
+
+                elif node.type in CLASS_TYPES:
+                    cname = cls._extract_node_identifier(node, content) or "AnonymousClass"
+                    class_names.append(cname)
+
+                elif node.type in IMPORT_TYPES:
+                    imp_str = content[node.start_byte:node.end_byte].strip().replace("\n", " ")
+                    if imp_str:
+                        imports_list.append(imp_str[:80])
+
+                for child in node.children:
+                    visit_node(child)
+
+            visit_node(root)
+
+            result["functions_count"] = len(function_names)
+            result["classes_count"] = len(class_names)
+            result["function_names"] = function_names[:100]
+            result["class_names"] = class_names[:100]
+            result["imports"] = imports_list[:100]
+            result["functions_metadata"] = functions_meta
+
+        except Exception as e:
+            result["has_syntax_error"] = True
+            result["syntax_error_details"] = f"Tree-sitter parser exception: {str(e)}"
+
+        return result
+
+    @classmethod
+    def _extract_node_identifier(cls, node, content: str) -> Optional[str]:
+        """Extract function or class name from a Tree-sitter node."""
+        for child in node.children:
+            if child.type in ("identifier", "type_identifier", "property_identifier"):
+                return content[child.start_byte:child.end_byte]
+        return None
+
+    # ─── Generic Source Code Analysis ─────────────────────────────────────────
+
+    @classmethod
+    def analyze_generic(
+        cls,
+        file_path: Path,
+        relative_path: str,
+        language: str,
+    ) -> Dict[str, Any]:
+        """
+        Basic source metrics for other languages (C, C++, Go, Rust, etc.).
+        Reports real line counts and informs that deep AST / CC is unsupported for this language.
+        """
+        content, read_error = cls.read_file_safely(file_path)
+
+        result: Dict[str, Any] = {
+            "relative_path": relative_path,
+            "language": language,
+            "loc": 0,
+            "sloc": 0,
+            "comments": 0,
+            "blank": 0,
+            "functions_count": 0,
+            "classes_count": 0,
+            "function_names": [],
+            "class_names": [],
+            "imports": [],
+            "max_nesting_depth": None,
+            "deepest_nesting_line": None,
+            "avg_complexity": None,
+            "max_complexity": None,
+            "maintainability_index": None,
+            "has_syntax_error": False,
+            "syntax_error_details": None,
+            "syntax_error_line": None,
+            "complexity_blocks": [],
+            "functions_metadata": [],
+            "classes_metadata": [],
+        }
+
+        if read_error or content is None:
+            result["has_syntax_error"] = True
+            result["syntax_error_details"] = read_error or "Unable to read file content."
+            return result
+
+        lines = content.splitlines()
+        result["loc"] = len(lines)
+        result["blank"] = sum(1 for line in lines if not line.strip())
+
+        # Generic comment heuristics
+        comment_lines = 0
+        for line in lines:
+            trimmed = line.strip()
+            if trimmed.startswith("//") or trimmed.startswith("#") or trimmed.startswith("--"):
+                comment_lines += 1
+
+        result["comments"] = comment_lines
+        result["sloc"] = max(result["loc"] - result["blank"] - result["comments"], 0)
+
+        # Regex heuristic for imports / includes
+        imports = []
+        for line in lines[:100]:
+            trimmed = line.strip()
+            if trimmed.startswith("#include") or trimmed.startswith("import ") or trimmed.startswith("use "):
+                imports.append(trimmed[:80])
+        result["imports"] = imports
+
+        return result

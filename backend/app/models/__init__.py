@@ -1,15 +1,41 @@
-from app.models.project import Project
-from app.models.project_file import ProjectFile
-from app.models.project_language import ProjectLanguage
-from app.models.project_technology import ProjectTechnology
-from app.models.code_metric import CodeMetric
-from app.models.analysis_job import AnalysisJob
+from app.models.project import Project, ProjectFile, ProjectStructure
+from app.models.code_quality import ProjectQualityAnalysis, ProjectFileMetric
+from app.models.similarity import ProjectSimilarityAnalysis, ProjectSimilarityMatch
+from app.models.documentation import (
+    ProjectDocumentationAnalysis,
+    ProjectDocumentItem,
+    ProjectDocumentationFinding,
+)
+from app.models.git_history import (
+    ProjectGitHistoryAnalysis,
+    ProjectCommitRecord,
+    ProjectGitFinding,
+)
+from app.models.ai_assistance import (
+    ProjectAIAssistanceAnalysis,
+    ProjectAIAssistanceEvidenceSignal,
+)
+from app.models.innovation import (
+    ProjectInnovationAnalysis,
+    ProjectInnovationMatch,
+)
 
 __all__ = [
     "Project",
     "ProjectFile",
-    "ProjectLanguage",
-    "ProjectTechnology",
-    "CodeMetric",
-    "AnalysisJob",
+    "ProjectStructure",
+    "ProjectQualityAnalysis",
+    "ProjectFileMetric",
+    "ProjectSimilarityAnalysis",
+    "ProjectSimilarityMatch",
+    "ProjectDocumentationAnalysis",
+    "ProjectDocumentItem",
+    "ProjectDocumentationFinding",
+    "ProjectGitHistoryAnalysis",
+    "ProjectCommitRecord",
+    "ProjectGitFinding",
+    "ProjectAIAssistanceAnalysis",
+    "ProjectAIAssistanceEvidenceSignal",
+    "ProjectInnovationAnalysis",
+    "ProjectInnovationMatch",
 ]

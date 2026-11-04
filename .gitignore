@@ -1,32 +1,70 @@
-# Node dependencies
-node_modules/
-frontend/node_modules/
+# Environment & Secrets (NEVER COMMIT CREDENTIALS)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
 
-# Build outputs
-dist/
-build/
-frontend/dist/
-
-# Python cache & virtual environment
-__pycache__/
-*.py[cod]
-*$py.class
+# Virtual Environments
 .venv/
 venv/
 env/
+ENV/
+*.venv/
 
-# Databases & local storage
-*.db
-*.sqlite
-*.sqlite3
-backend/data/
-backend/projectlens.db
+# Node & Frontend dependencies and build outputs
+node_modules/
+dist/
+dist-ssr/
+*.local
 
-# Environment variables
-.env
-.env.local
+# Python cache & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# IDE & OS
+# Uploads & Extracted test archives
+uploads/
+test_uploads/
+backend/uploads/
+backend/test_uploads/
+*.zip
+
+# Scratch debug folders
+backend/scratch/
+scratch/
+
+# IDE & OS files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

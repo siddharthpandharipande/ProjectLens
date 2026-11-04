@@ -1,1 +1,1 @@
-# ProjectLens Backend Package
+"""ProjectLens Backend Application Package."""

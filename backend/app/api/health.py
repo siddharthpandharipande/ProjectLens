@@ -1,28 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.db.database import get_db
+from fastapi import APIRouter, status
+from app.database import check_db_connection
+from app.config import settings
 
-router = APIRouter(prefix="/health", tags=["health"])
+router = APIRouter(tags=["Health"])
 
-@router.get("", status_code=status.HTTP_200_OK)
-@router.get("/", status_code=status.HTTP_200_OK)
-def check_health(db: Session = Depends(get_db)):
+
+@router.get("/health", status_code=status.HTTP_200_OK)
+@router.get("/api/health", status_code=status.HTTP_200_OK)
+async def health_check():
     """
-    Health check endpoint returning system and database connectivity status.
+    Return backend health and database connectivity status.
+    Serves both /health and /api/health for full compatibility.
     """
-    db_status = "connected"
-    try:
-        db.execute(text("SELECT 1"))
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "unhealthy", "database": db_status}
-        )
-
+    db_ok = check_db_connection()
     return {
-        "status": "healthy",
-        "database": db_status,
-        "service": "ProjectLens Engine v2.4.0"
+        "status": "ok" if db_ok else "degraded",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "database": "connected" if db_ok else "disconnected",
+        "environment": settings.ENVIRONMENT,
     }

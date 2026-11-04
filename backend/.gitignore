@@ -1,0 +1,40 @@
+# ProjectLens backend gitignore
+
+# Environment & secrets (never commit credentials)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+.env.local
+.env.*.local
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Uploads & extracted archives (runtime data, not source)
+uploads/
+test_uploads/
+scratch/
+*.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
