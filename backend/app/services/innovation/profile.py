@@ -18,6 +18,7 @@ class EvidenceType(StrEnum):
     DETECTED_IMPLEMENTATION = "detected_implementation"  # Found in code, not in docs
     UNVERIFIED_CLAIM = "unverified_claim"  # Documented, but missing code implementation
     INSUFFICIENT_INFORMATION = "insufficient_information"  # Insufficient data to verify
+    PROPOSED_FUTURE = "proposed_future"  # Documented as planned, roadmap, or future work
 
 
 @dataclass

@@ -32,7 +32,8 @@ def build_innovation_user_prompt(
     lines.append(f"Project ID: {profile.project_id}")
     lines.append(f"Project Title: {profile.title}")
     lines.append(f"Domain: {profile.domain}")
-    lines.append(f"Target Users: {', '.join(profile.target_users) or 'General Users'}")
+    clean_users = [str(u).strip() for u in (profile.target_users or []) if u and str(u).strip()]
+    lines.append(f"Target Users: {', '.join(clean_users) if clean_users else 'General Users'}")
     lines.append("")
     lines.append(f"Problem Statement:\n{profile.problem_statement or '(Not explicitly documented)'}")
     lines.append("")
@@ -51,9 +52,11 @@ def build_innovation_user_prompt(
             lines.append(f"      doc_ref: {feat.doc_reference}")
 
     lines.append("")
-    tech = profile.languages + profile.frameworks + profile.databases
-    lines.append(f"Technologies: {', '.join(tech) or 'None detected'}")
-    lines.append(f"Algorithms: {', '.join(profile.algorithms) or 'None detected'}")
+    tech = (profile.languages or []) + (profile.frameworks or []) + (profile.databases or [])
+    clean_tech = [str(t).strip() for t in tech if t and str(t).strip()]
+    clean_algo = [str(a).strip() for a in (profile.algorithms or []) if a and str(a).strip()]
+    lines.append(f"Technologies: {', '.join(clean_tech) if clean_tech else 'None detected'}")
+    lines.append(f"Algorithms: {', '.join(clean_algo) if clean_algo else 'None detected'}")
     lines.append("")
     lines.append(f"Cohort Submissions Evaluated: {cohort_size}")
     if matches:

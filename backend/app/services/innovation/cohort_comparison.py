@@ -82,6 +82,22 @@ class SimpleTfidfVectorizer:
         return max(0.0, min(1.0, dot))
 
 
+def format_cohort_project_title(project_id: str, title: Optional[str], is_duplicate: bool = False) -> str:
+    """Format peer project display name avoiding raw directory hashes and disambiguating duplicate titles."""
+    short_id = project_id[:8] if len(project_id) >= 8 else project_id
+    t = (title or "").strip()
+    if not t:
+        return f"Project ({short_id})"
+    # Check if title looks like a UUID or internal directory hash
+    clean_hex = re.sub(r"[-_]", "", t)
+    is_hash = (len(clean_hex) >= 12 and all(c in "0123456789abcdefABCDEF" for c in clean_hex)) or (t == project_id)
+    if is_hash:
+        return f"Project ({short_id})"
+    if is_duplicate:
+        return f"{t} ({short_id})"
+    return t
+
+
 class CohortComparisonService:
     """Executes multi-dimensional comparison against peer project submissions."""
 
@@ -149,6 +165,13 @@ class CohortComparisonService:
         all_profiles = [current_profile] + cohort
         composite_docs = [p.get_composite_text() for p in all_profiles]
 
+        # Count occurrences of peer titles to disambiguate identical project names
+        title_counts: Dict[str, int] = {}
+        for p in cohort:
+            raw_t = (p.title or "").strip()
+            if raw_t:
+                title_counts[raw_t] = title_counts.get(raw_t, 0) + 1
+
         # TF-IDF fit
         tfidf = SimpleTfidfVectorizer()
         vectors = tfidf.fit_transform(composite_docs)
@@ -158,6 +181,9 @@ class CohortComparisonService:
 
         for idx, peer in enumerate(cohort, start=1):
             peer_vec = vectors[idx]
+            raw_t = (peer.title or "").strip()
+            is_dup = title_counts.get(raw_t, 0) > 1
+            display_title = format_cohort_project_title(peer.project_id, peer.title, is_duplicate=is_dup)
 
             # 1. Problem domain similarity
             domain_sim = cls._calculate_domain_similarity(current_profile, peer)
@@ -222,11 +248,15 @@ class CohortComparisonService:
                     "dimension": "Features",
                     "observation": f"Feature similarity index: {round(feature_sim, 2)}",
                 },
+                {
+                    "dimension": "Advisory Notice",
+                    "observation": "Screening signal only; not a plagiarism verdict.",
+                },
             ]
 
             matches.append({
                 "compared_project_id": peer.project_id,
-                "compared_project_title": peer.title or peer.project_id,
+                "compared_project_title": display_title,
                 "problem_similarity": round(problem_sim, 4),
                 "solution_similarity": round(solution_sim, 4),
                 "feature_similarity": round(feature_sim, 4),
@@ -298,6 +328,9 @@ class CohortComparisonService:
     ) -> str:
         """Generate a concise, human-readable summary of differences."""
         diffs: List[str] = []
+        if overall_sim >= 0.95 or (domain_sim >= 0.9 and tech_overlap >= 0.95 and overall_sim >= 0.85):
+            diffs.append(f"Potential exact duplicate submission detected ({round(overall_sim * 100, 1)}% similarity)")
+
         if domain_sim < 0.5:
             diffs.append(f"Different application domains ({a.domain} vs {b.domain})")
         else:

@@ -85,8 +85,16 @@ class InnovationAnalyzer:
             analysis_status = "insufficient_evidence"
 
         # 4. Optional LLM Interpretation
-        llm_provider = settings.LLM_PROVIDER
-        llm_model = settings.LLM_MODEL
+        if client is None:
+            client = OpenRouterClient()
+
+        if client and getattr(client, "is_gemini", False):
+            llm_provider = settings.LLM_PROVIDER
+            llm_model = settings.effective_gemini_model
+        else:
+            llm_provider = settings.LLM_PROVIDER
+            llm_model = settings.LLM_MODEL
+
         llm_status: Optional[str] = "not_requested"
         structured_interp: Dict[str, Any] = {}
 
@@ -95,9 +103,6 @@ class InnovationAnalyzer:
         elif not settings.LLM_ENABLED:
             llm_status = "disabled"
         else:
-            if client is None:
-                client = OpenRouterClient()
-
             if not client.is_available():
                 llm_status = "disabled"
             elif profile.is_empty or not profile.is_sufficient:
@@ -140,13 +145,63 @@ class InnovationAnalyzer:
                     structured_interp = {"llm_error": payload}
                     if isinstance(exc, LLMRateLimitError):
                         limitations.append(
-                            "Upstream OpenRouter free model was temporarily rate-limited (HTTP 429). "
+                            f"Upstream {llm_provider.capitalize() if llm_provider else 'AI'} model was temporarily rate-limited (HTTP {payload.get('status_code') or 429}). "
                             "Deterministic distinctiveness evidence remains fully intact."
                         )
                     elif isinstance(exc, LLMTimeoutError):
-                        limitations.append("OpenRouter LLM request timed out.")
+                        limitations.append(f"{llm_provider.capitalize() if llm_provider else 'AI'} LLM request timed out.")
                     else:
                         limitations.append(f"LLM interpretation failed: {type(exc).__name__}.")
+
+        if llm_status == "error":
+            structured_interp.setdefault(
+                "innovation_summary",
+                f"Deterministic innovation analysis evaluated {profile.title} against a cohort of {cohort_size} peer projects. Advisory classification: {advisory_category} ({dimension_scores.get('confidence_classification', 'Directly Verified')}).",
+            )
+            structured_interp.setdefault(
+                "problem_understanding",
+                profile.problem_statement if profile.problem_statement and profile.problem_statement != "Not identified from the available project documents." else f"Project addresses domain needs in {profile.domain or 'Software Engineering'}.",
+            )
+            structured_interp.setdefault(
+                "proposed_solution_understanding",
+                profile.proposed_solution if profile.proposed_solution and profile.proposed_solution != "Not identified from the available project documents." else f"Implemented via {', '.join(profile.languages or ['Standard Tech Stack'])}.",
+            )
+            structured_interp.setdefault(
+                "distinctive_elements",
+                [f.name for f in profile.features if f.evidence_type in ("verified_match", "detected_implementation")][:5] or ["Modular software architecture."],
+            )
+            structured_interp.setdefault(
+                "innovation_strengths",
+                [f"Verified implementation of: {f.name}" for f in profile.features if f.evidence_type == "verified_match"] or ["Standard software engineering implementation."],
+            )
+            structured_interp.setdefault(
+                "missing_evidence",
+                [f"Unverified feature claim: {f.name}" for f in profile.features if f.evidence_type == "unverified_claim"] or ["None identified; core claimed features are supported by code."],
+            )
+            structured_interp.setdefault(
+                "improvement_recommendations",
+                [
+                    "Document unit testing strategy and test results for critical features.",
+                    "Provide explicit architectural block diagrams illustrating data flow.",
+                    "Clarify deployment instructions and runtime environment configuration.",
+                ],
+            )
+            structured_interp.setdefault(
+                "faculty_follow_up_recommendations",
+                [
+                    f"Ask student to demonstrate runtime behavior of {profile.features[0].name if profile.features else 'primary feature'}.",
+                    "Probe student understanding of chosen algorithm/data structures.",
+                    "Verify individual contribution share in collaborative implementation tasks.",
+                ],
+            )
+            structured_interp.setdefault(
+                "confidence_classification",
+                dimension_scores.get("confidence_classification", "Directly Verified"),
+            )
+            structured_interp.setdefault(
+                "confidence_rationale",
+                dimension_scores.get("confidence_rationale", "Grounded in direct static codebase and documentation analysis."),
+            )
 
         return InnovationAnalysisResult(
             project_id=project_id,

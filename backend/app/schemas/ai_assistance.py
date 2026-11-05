@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AIAssistanceSignalSchema(BaseModel):
@@ -16,6 +16,38 @@ class AIAssistanceSignalSchema(BaseModel):
     availability_status: str = Field(..., alias="availabilityStatus")
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator(
+        "signal_id",
+        "category",
+        "source",
+        "observed_value",
+        "explanation",
+        "availability_status",
+        mode="before",
+    )
+    @classmethod
+    def ensure_str(cls, v: Any) -> str:
+        return str(v) if v is not None else ""
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def ensure_float(cls, v: Any) -> Optional[float]:
+        if v is None or v == "":
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator("alternative_explanations", mode="before")
+    @classmethod
+    def ensure_list(cls, v: Any) -> List[str]:
+        if isinstance(v, (list, tuple, set)):
+            return [str(item) for item in v if item is not None]
+        if isinstance(v, str) and v.strip():
+            return [v.strip()]
+        return []
 
 
 class AIAssistanceAnalysisResponse(BaseModel):

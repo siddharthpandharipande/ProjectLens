@@ -45,6 +45,22 @@ from app.schemas.ai_assistance import (
     AIAssistanceSignalSchema,
     AIAssistanceAnalysisResponse,
 )
+from app.schemas.viva import (
+    VivaQuestionSchema,
+    VivaQuestionSetResponse,
+    VivaGenerateRequest,
+    VivaPracticeUpdateRequest,
+    VivaProgressResponse,
+    VIVA_CATEGORIES,
+    VIVA_DIFFICULTIES,
+    VIVA_MODES,
+)
+from app.schemas.evaluation import (
+    ProjectEvaluationResponse,
+    CategoryScoreSchema,
+    ActionableRecommendationSchema,
+    ScoreBreakdownItem,
+)
 
 __all__ = [
     "ProjectStatus",

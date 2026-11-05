@@ -146,6 +146,10 @@ class InnovationService:
             record.project_profile or {}
         )
 
+        dim_scores = record.dimension_scores or {}
+        confidence_class = dim_scores.get("confidence_classification")
+        confidence_rat = dim_scores.get("confidence_rationale")
+
         return InnovationAnalysisResponse(
             id=record.id,
             projectId=record.project_id,
@@ -155,7 +159,9 @@ class InnovationService:
             cohortSize=record.cohort_size,
             comparisonMethod=record.comparison_method,
             matches=matches_out,
-            dimensionScores=record.dimension_scores or {},
+            dimensionScores=dim_scores,
+            confidenceClassification=confidence_class,
+            confidenceRationale=confidence_rat,
             limitations=record.limitations or [],
             rulesVersion=record.rules_version,
             llmProvider=record.llm_provider,

@@ -127,6 +127,23 @@ export interface LLMErrorInfo {
   provider_code?: string | null;
 }
 
+export interface AIAssistanceFinding {
+  title: string;
+  description: string;
+  category: string;
+  priority: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational' | string;
+  why_it_matters?: string;
+  whyItMatters?: string;
+  supporting_evidence?: string;
+  supportingEvidence?: string;
+  recommended_action?: string;
+  recommendedAction?: string;
+  expected_benefit?: string;
+  expectedBenefit?: string;
+  source_reference?: string | null;
+  sourceReference?: string | null;
+}
+
 export interface AIAssistanceInterpretation {
   interpretation_status?: string;
   executive_summary?: string;
@@ -140,6 +157,7 @@ export interface AIAssistanceInterpretation {
     interpretation?: string[];
     speculation?: string[];
   };
+  findings?: AIAssistanceFinding[];
   llm_error?: LLMErrorInfo;
 }
 
@@ -150,7 +168,8 @@ export type InnovationEvidenceType =
   | 'documented_feature'
   | 'detected_implementation'
   | 'unverified_claim'
-  | 'insufficient_information';
+  | 'insufficient_information'
+  | 'proposed_future';
 
 export interface FeatureEvidence {
   name: string;
@@ -230,6 +249,11 @@ export interface InnovationInterpretation {
   evidence_references?: Array<{ evidence_id: string; observation: string }>;
   alternative_explanations?: string[];
   faculty_follow_up_recommendations?: string[];
+  innovation_strengths?: string[];
+  missing_evidence?: string[];
+  improvement_recommendations?: string[];
+  confidence_classification?: string;
+  confidence_rationale?: string;
   limitations?: string[];
   llm_error?: LLMErrorInfo;
 }
@@ -246,6 +270,8 @@ export interface InnovationAnalysisResponse {
   comparisonMethod: string;
   matches: InnovationMatch[];
   dimensionScores: InnovationDimensionScores;
+  confidenceClassification?: string | null;
+  confidenceRationale?: string | null;
   limitations: InnovationLimitations;
   rulesVersion: string;
   llmProvider?: string | null;
@@ -265,13 +291,70 @@ export interface VivaQuestion {
   context?: string;
 }
 
-// ─── Evaluation Report ───────────────────────────────────────────────────────
+// ─── Evaluation Report & Engine ──────────────────────────────────────────────
 
 export interface ScoreBreakdown {
   dimension: string;
   score: number;
   maxScore: number;
   notes?: string;
+}
+
+export interface CategoryScore {
+  id?: string;
+  name?: string;
+  category_id?: string;
+  title?: string;
+  weight: number;
+  score?: number | null;
+  raw_score?: number | null;
+  contribution?: number;
+  weighted_score?: number | null;
+  status: 'assessed' | 'unavailable' | 'insufficient_evidence' | 'provisional' | string;
+  reason?: string | null;
+  strength_rating?: string;
+  key_findings?: string[];
+  metrics?: Record<string, unknown>;
+}
+
+export interface ActionableRecommendation {
+  title?: string;
+  description?: string;
+  priority: 'Critical' | 'High' | 'Medium' | 'Low' | 'Immediate' | 'Important' | 'Advisory' | string;
+  category?: string;
+  whyItMatters?: string;
+  why_it_matters?: string;
+  recommendedAction?: string;
+  recommended_action?: string;
+  expectedBenefit?: string;
+  expected_benefit?: string;
+  sourceModule?: string;
+  source_module?: string;
+  action?: string;
+  target_area?: string;
+  rationale?: string;
+}
+
+export interface ProjectEvaluationDetails {
+  id: number;
+  project_id: string;
+  overall_score: number;
+  grade: string;
+  evaluation_status: 'complete' | 'provisional' | 'insufficient_evidence' | string;
+  coverage_pct: number;
+  module_statuses: Record<string, string>;
+  category_scores: CategoryScore[];
+  strengths: string[];
+  weaknesses: string[];
+  risks: string[];
+  recommendations: ActionableRecommendation[];
+  executive_summary?: string | null;
+  faculty_notes?: string | null;
+  scoring_version: string;
+  created_at: string;
+  updated_at: string;
+  report_available: boolean;
+  report_url: string;
 }
 
 export interface EvaluationReport {
@@ -281,6 +364,7 @@ export interface EvaluationReport {
   facultyNotes?: string;
   reportAvailable: boolean;
   reportUrl?: string;
+  evaluation?: ProjectEvaluationDetails | null;
 }
 
 // ─── Full Analysis Bundle ─────────────────────────────────────────────────────
@@ -295,5 +379,6 @@ export interface ProjectAnalysis {
   aiAssistance?: AIAssistanceResult | null;
   innovation?: InnovationAnalysisResponse | null;
   vivaQuestions?: VivaQuestion[];
+  vivaQuestionSet?: import('./viva').VivaQuestionSet | null;
   evaluationReport?: EvaluationReport;
 }

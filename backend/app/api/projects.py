@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, status, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.project import (
@@ -46,6 +46,9 @@ from app.schemas.innovation import (
     InnovationAnalysisResponse,
     InnovationProfileSchema,
 )
+from app.services.viva.service import VivaService
+from app.services.evaluation.service import EvaluationService, sanitize_filename
+from app.schemas.evaluation import ProjectEvaluationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -876,10 +879,53 @@ def get_project_analysis_bundle(project_id: str, db: Session = Depends(get_db)):
 
     ai_assistance = AIAssistanceService.get_latest_analysis(db=db, project_id=project_id)
     innovation = InnovationService.get_latest_analysis(db=db, project_id=project_id)
+    viva_set = VivaService.get_latest_question_set(db=db, project_id=project_id)
 
     ai_innov_status = "not_started"
     if ai_assistance or innovation:
         ai_innov_status = "completed"
+
+    viva_status = "completed" if viva_set and viva_set.questions else "not_started"
+
+    # Final Phase: Consolidated Evaluation & Scoring
+    latest_eval = EvaluationService.get_latest_evaluation(db=db, project_id=project_id)
+    eval_report_data = None
+    if latest_eval:
+        eval_report_data = {
+            "overallScore": latest_eval.overall_score if latest_eval.overall_score is not None else (project.score or 0.0),
+            "grade": latest_eval.grade,
+            "scoreBreakdown": [item.model_dump(by_alias=True) for item in latest_eval.score_breakdown],
+            "facultyNotes": latest_eval.faculty_notes,
+            "reportAvailable": True,
+            "reportUrl": f"/api/projects/{project_id}/report",
+            "evaluationStatus": latest_eval.evaluation_status,
+            "coveragePct": latest_eval.coverage_pct,
+            "evaluation": latest_eval.model_dump(by_alias=True),
+        }
+    elif project.score is not None:
+        eval_report_data = {
+            "overallScore": project.score,
+            "grade": None,
+            "scoreBreakdown": [],
+            "facultyNotes": None,
+            "reportAvailable": True,
+            "reportUrl": f"/api/projects/{project_id}/report",
+            "evaluationStatus": "partial",
+            "coveragePct": 100.0,
+        }
+    else:
+        eval_report_data = {
+            "overallScore": 0.0,
+            "grade": None,
+            "scoreBreakdown": [],
+            "facultyNotes": None,
+            "reportAvailable": True,
+            "reportUrl": f"/api/projects/{project_id}/report",
+            "evaluationStatus": "not_started",
+            "coveragePct": 0.0,
+        }
+
+    eval_status = "completed" if latest_eval else ("partial" if project.score is not None else "not_started")
 
     return {
         "projectId": project_id,
@@ -889,8 +935,8 @@ def get_project_analysis_bundle(project_id: str, db: Session = Depends(get_db)):
             {"name": "Documentation & Development", "status": doc_status},
             {"name": "Development History", "status": git_status},
             {"name": "AI Assistance & Innovation", "status": ai_innov_status},
-            {"name": "Viva Questions", "status": "unavailable"},
-            {"name": "Evaluation Report", "status": "unavailable"},
+            {"name": "Viva Questions", "status": viva_status},
+            {"name": "Evaluation Report", "status": eval_status},
         ],
         "codeQuality": code_quality_data,
         "similarity": similarity_data,
@@ -898,8 +944,9 @@ def get_project_analysis_bundle(project_id: str, db: Session = Depends(get_db)):
         "developmentHistory": dev_history_data,
         "aiAssistance": ai_assistance.model_dump(by_alias=True) if ai_assistance else None,
         "innovation": innovation.model_dump(by_alias=True) if innovation else None,
-        "vivaQuestions": [],
-        "evaluationReport": None,
+        "vivaQuestions": [q.model_dump(by_alias=True) for q in viva_set.questions] if viva_set else [],
+        "vivaQuestionSet": viva_set.model_dump(by_alias=True) if viva_set else None,
+        "evaluationReport": eval_report_data,
     }
 
 
@@ -1054,3 +1101,130 @@ def get_development_history(project_id: str, db: Session = Depends(get_db)):
         )
 
     return _serialize_git_history_response(analysis)
+
+
+# ---------------------------------------------------------------------------
+# Final Phase: Overall Evaluation & Comprehensive Report Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{project_id}/evaluate",
+    response_model=ProjectEvaluationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Run or refresh overall project evaluation",
+)
+def evaluate_project(project_id: str, db: Session = Depends(get_db)):
+    """Consolidate all analysis results, compute overall score (0-100), and persist evaluation."""
+    project = ProjectService.get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found.",
+        )
+    try:
+        return EvaluationService.evaluate_project(db=db, project_id=project_id)
+    except Exception as exc:
+        db.rollback()
+        logger.error("Evaluation failed for project '%s': %s", project_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Project evaluation failed: {type(exc).__name__} ({str(exc)})",
+        ) from exc
+
+
+@router.get(
+    "/{project_id}/evaluation",
+    response_model=ProjectEvaluationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get saved overall evaluation",
+)
+def get_project_evaluation(project_id: str, db: Session = Depends(get_db)):
+    """Retrieve the latest saved overall evaluation for a project."""
+    project = ProjectService.get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found.",
+        )
+    evaluation = EvaluationService.get_latest_evaluation(db=db, project_id=project_id)
+    if not evaluation:
+        # If not evaluated yet, run evaluation dynamically so user gets results
+        return EvaluationService.evaluate_project(db=db, project_id=project_id)
+    return evaluation
+
+
+@router.post(
+    "/{project_id}/report",
+    status_code=status.HTTP_200_OK,
+    summary="Request/generate evaluation report",
+)
+def request_evaluation_report(project_id: str, db: Session = Depends(get_db)):
+    """Request formal report generation, ensuring evaluation is up to date."""
+    project = ProjectService.get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found.",
+        )
+    eval_res = EvaluationService.evaluate_project(db=db, project_id=project_id)
+    return {
+        "overallScore": eval_res.overall_score if eval_res.overall_score is not None else 0.0,
+        "grade": eval_res.grade,
+        "scoreBreakdown": [item.model_dump() for item in eval_res.score_breakdown],
+        "facultyNotes": eval_res.faculty_notes,
+        "reportAvailable": True,
+        "reportUrl": f"/api/projects/{project_id}/report",
+        "evaluationStatus": eval_res.evaluation_status,
+        "coveragePct": eval_res.coverage_pct,
+    }
+
+
+@router.get(
+    "/{project_id}/report",
+    status_code=status.HTTP_200_OK,
+    summary="Download generated PDF report",
+)
+def download_evaluation_report(project_id: str, db: Session = Depends(get_db)):
+    """Stream generated PDF evaluation report directly to client."""
+    project = ProjectService.get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found.",
+        )
+    try:
+        pdf_bytes, filename = EvaluationService.generate_pdf(db=db, project_id=project_id)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as exc:
+        logger.error("PDF generation failed for '%s': %s", project_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"PDF report generation failed: {type(exc).__name__}",
+        ) from exc
+
+
+@router.get(
+    "/{project_id}/evaluation/export.json",
+    status_code=status.HTTP_200_OK,
+    summary="Download evaluation export as JSON",
+)
+def export_evaluation_json(project_id: str, db: Session = Depends(get_db)):
+    """Export normalized evaluation results as downloadable JSON."""
+    project = ProjectService.get_project_by_id(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found.",
+        )
+    data = EvaluationService.generate_json_export(db=db, project_id=project_id)
+    safe_fn = sanitize_filename(project.title or project_id)
+    import json
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{safe_fn}_evaluation.json"'},
+    )

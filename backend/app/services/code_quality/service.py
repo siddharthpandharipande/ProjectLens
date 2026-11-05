@@ -67,7 +67,7 @@ class CodeQualityService:
 
         analyzed_file_metrics: List[Dict[str, Any]] = []
 
-        for pf in source_files:
+        for i, pf in enumerate(source_files):
             file_on_disk = (extracted_dir / pf.relative_path).resolve()
 
             # Security sanity check: file must stay within project extracted dir
@@ -77,11 +77,24 @@ class CodeQualityService:
                 # Path traversal attempt or symlink escape
                 continue
 
-            metric = CodeQualityAnalyzer.analyze_file(
-                file_path=file_on_disk,
-                relative_path=pf.relative_path,
-                language=pf.detected_language,
-            )
+            try:
+                metric = CodeQualityAnalyzer.analyze_file(
+                    file_path=file_on_disk,
+                    relative_path=pf.relative_path,
+                    language=pf.detected_language,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Code quality analysis failed for %s (%s): %s; falling back to generic metrics.",
+                    pf.relative_path,
+                    pf.detected_language,
+                    exc,
+                )
+                metric = CodeQualityAnalyzer.analyze_generic(
+                    file_path=file_on_disk,
+                    relative_path=pf.relative_path,
+                    language=pf.detected_language,
+                )
             analyzed_file_metrics.append(metric)
 
         # ─── Aggregate Project-Level Metrics ──────────────────────────────────

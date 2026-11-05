@@ -96,6 +96,26 @@ class Project(Base):
         cascade="all, delete-orphan",
         order_by="ProjectInnovationAnalysis.created_at.desc()",
     )
+    # Phase 8 Viva Relationships
+    viva_question_sets = relationship(
+        "ProjectVivaQuestionSet",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectVivaQuestionSet.created_at.desc()",
+    )
+    viva_questions = relationship(
+        "ProjectVivaQuestion",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectVivaQuestion.created_at.asc()",
+    )
+    # Final Phase Evaluation Relationships
+    evaluations = relationship(
+        "ProjectEvaluation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectEvaluation.created_at.desc()",
+    )
 
     def __repr__(self) -> str:
         return f"<Project(id='{self.id}', title='{self.title}', status='{self.status}')>"

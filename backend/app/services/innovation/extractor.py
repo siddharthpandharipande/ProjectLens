@@ -25,6 +25,40 @@ from app.services.innovation.profile import (
     ProjectProfile,
 )
 
+NOT_IDENTIFIED = "Not identified from the available project documents."
+
+GENERIC_DESCRIPTIONS: Set[str] = {
+    "about", "overview", "introduction", "project description", "description",
+    "background", "problem", "problem statement", "solution", "proposed solution",
+    "readme", "project", "details", "notes", "summary", "abstract",
+    "features", "installation", "usage", "getting started", "setup",
+    "table of contents", "index", "license", "contributing", "requirements",
+    "architecture", "methodology", "approach", "system", "documentation",
+}
+
+
+def is_meaningful_description(text: str) -> bool:
+    """Determine whether extracted text is a meaningful description and not merely a heading or generic stub."""
+    if not text:
+        return False
+    clean = " ".join(text.split()).strip()
+    clean_lower = clean.lower()
+    if clean_lower in GENERIC_DESCRIPTIONS:
+        return False
+    # Check if text is just a markdown heading like "# About" or "## Overview"
+    stripped_heading = clean_lower.lstrip("#").strip()
+    if stripped_heading in GENERIC_DESCRIPTIONS:
+        return False
+    # Check for short or token-poor stubs: require at least 25 characters and 4 words
+    words = clean.split()
+    if len(clean) < 25 or len(words) < 4:
+        return False
+    # Reject pure command-line installation or invocation snippets
+    if any(cmd in clean_lower for cmd in ["pip install", "npm install", "yarn install", "git clone", "docker run", "docker-compose"]):
+        if len(words) < 8:
+            return False
+    return True
+
 # Common domain keywords mapping
 DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "Healthcare / Medical": [
@@ -239,8 +273,9 @@ class ProjectProfileExtractor:
                         title = str(sec.get("heading") or sec.get("title") or "").strip().lower()
                         content = str(sec.get("content") or sec.get("preview") or "").strip()
                     elif isinstance(sec, str):
+                        # A string entry in sections_found represents a section heading name, NOT body content
                         title = sec.strip().lower()
-                        content = sec.strip()
+                        content = ""
                     else:
                         continue
                     if title and content:
@@ -281,22 +316,26 @@ class ProjectProfileExtractor:
     ) -> Tuple[str, str]:
         """Extract problem statement and identify application domain."""
         problem = ""
-        # Look for problem-specific sections first
+        # Look for problem-specific sections first, rejecting heading repetitions and generic tokens
         for key, contents in sections_dict.items():
             if any(term in key for term in ["problem", "motivation", "background", "need", "introduction", "about"]):
                 clean_content = " ".join(" ".join(contents).split())
-                if clean_content:
+                if is_meaningful_description(clean_content):
                     problem = clean_content[:600]
                     break
 
         if not problem and doc_text:
-            # Look for leading paragraph that isn't just installation/setup
+            # Look for leading paragraph that contains real sentences and isn't just installation/setup
             for p in doc_text.split("\n\n"):
-                p_clean = p.strip()
-                if len(p_clean) > 30 and not any(kw in p_clean.lower() for kw in ["pip install", "npm install", "yarn", "git clone", "docker run"]):
+                p_clean = " ".join(p.split()).strip()
+                if is_meaningful_description(p_clean):
                     if any(term in p_clean.lower() for term in ["problem", "project", "system", "aim", "goal", "design", "solution", "support", "tool", "portal"]):
                         problem = p_clean[:400]
                         break
+
+        # Fallback to standard indication if no meaningful problem statement could be extracted
+        if not problem:
+            problem = NOT_IDENTIFIED
 
         # Domain inference
         combined_context = f"{title} {problem} {doc_text[:2000]}".lower()
@@ -351,17 +390,20 @@ class ProjectProfileExtractor:
         for key, contents in sections_dict.items():
             if any(term in key for term in ["solution", "proposed", "system", "architecture", "methodology", "approach", "overview"]):
                 clean_content = " ".join(" ".join(contents).split())
-                if clean_content:
+                if is_meaningful_description(clean_content):
                     solution = clean_content[:600]
                     break
 
         if not solution and doc_text:
-            lines = [l.strip() for l in doc_text.splitlines() if len(l.strip()) > 40]
+            lines = [l.strip() for l in doc_text.splitlines() if is_meaningful_description(l.strip())]
             if len(lines) > 1:
                 solution = lines[1][:400]
+            elif lines:
+                solution = lines[0][:400]
 
-        if not solution and title:
-            solution = f"A {domain.lower()} system designed to provide automated support for {title.lower()}."
+        # Do not invent arbitrary solution text; declare clearly if not identified
+        if not solution:
+            solution = NOT_IDENTIFIED
 
         return solution
 
@@ -478,22 +520,38 @@ class ProjectProfileExtractor:
 
         # 1. Search for features in documented sections
         for key, contents in sections_dict.items():
-            if any(term in key for term in ["feature", "functionality", "capabilities", "modules", "specification"]):
+            key_lower = key.lower()
+            is_future_section = any(term in key_lower for term in ["future", "roadmap", "planned", "upcoming", "enhancement"])
+            is_feature_section = any(term in key_lower for term in ["feature", "functionality", "capabilities", "modules", "specification", "scope"])
+            if is_future_section or is_feature_section:
                 for content in contents:
                     for line in content.splitlines():
                         line_s = line.strip()
                         if line_s.startswith(("-", "*", "1.", "2.", "3.", "4.", "5.", "•")):
                             item_name = line_s.lstrip("-*•123456789. ").strip()
                             if 5 <= len(item_name) <= 120:
-                                documented_items.append((item_name, f"Section: {key}"))
+                                documented_items.append((item_name, f"Section: {key}", is_future_section))
 
         # Map file paths for evidence matching
         code_files = [f for f in files if f.category in ("Source Code", "Code")]
 
-        for feat_name, doc_ref in documented_items:
+        for feat_name, doc_ref, is_future in documented_items:
+            if is_future:
+                features.append(
+                    FeatureEvidence(
+                        name=feat_name,
+                        description=f"Proposed / future enhancement: declared in {doc_ref} as roadmap or planned functionality.",
+                        evidence_type=EvidenceType.PROPOSED_FUTURE,
+                        doc_reference=doc_ref,
+                        code_reference=None,
+                    )
+                )
+                continue
+
             # Tokenize feature name to check for corresponding code files/classes
             tokens = [t.lower() for t in re.split(r"\W+", feat_name) if len(t) >= 3]
             matched_code_file: Optional[str] = None
+            partial_code_file: Optional[str] = None
 
             for cf in code_files:
                 cf_path_lower = cf.relative_path.lower()
@@ -505,8 +563,7 @@ class ProjectProfileExtractor:
                         matched = True
                         break
                     if len(t) >= 4 and t[:4] in cf_path_lower:
-                        matched = True
-                        break
+                        partial_code_file = cf.relative_path
                 if matched:
                     matched_code_file = cf.relative_path
                     break
@@ -515,17 +572,27 @@ class ProjectProfileExtractor:
                 features.append(
                     FeatureEvidence(
                         name=feat_name,
-                        description=f"Verified implementation found in {matched_code_file}",
+                        description=f"Implemented application capability: documented in {doc_ref} and verified by code implementation in {matched_code_file}.",
                         evidence_type=EvidenceType.VERIFIED_MATCH,
                         doc_reference=doc_ref,
                         code_reference=matched_code_file,
+                    )
+                )
+            elif partial_code_file:
+                features.append(
+                    FeatureEvidence(
+                        name=feat_name,
+                        description=f"Documented feature with partial code evidence in {partial_code_file}; full implementation requires defense verification.",
+                        evidence_type=EvidenceType.DOCUMENTED_FEATURE,
+                        doc_reference=doc_ref,
+                        code_reference=partial_code_file,
                     )
                 )
             else:
                 features.append(
                     FeatureEvidence(
                         name=feat_name,
-                        description="Feature is documented but lacks clear matching source file implementation.",
+                        description=f"Unverified feature claim: declared in {doc_ref}, but no matching source code implementation was detected.",
                         evidence_type=EvidenceType.UNVERIFIED_CLAIM,
                         doc_reference=doc_ref,
                         code_reference=None,
@@ -540,8 +607,8 @@ class ProjectProfileExtractor:
                 if stem.lower() not in ("init", "conftest", "config", "main", "app", "index"):
                     features.append(
                         FeatureEvidence(
-                            name=f"{stem} Module",
-                            description=f"Detected implementation module at {cf.relative_path}",
+                            name=f"Code Component: {stem}",
+                            description=f"Internal technical component inferred from source file {cf.relative_path}; not documented as a declared feature.",
                             evidence_type=EvidenceType.DETECTED_IMPLEMENTATION,
                             doc_reference=None,
                             code_reference=cf.relative_path,

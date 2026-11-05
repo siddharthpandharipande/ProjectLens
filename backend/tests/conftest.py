@@ -23,6 +23,7 @@ from app.config import settings
 
 # Disable live LLM network calls by default during testing suite
 settings.LLM_ENABLED = False
+settings.MAX_UPLOAD_SIZE_MB = 2
 
 # Test in-memory database with SQLite StaticPool
 TEST_DATABASE_URL = "sqlite:///:memory:"

@@ -5,8 +5,22 @@ import {
   Edit3, ChevronRight, FileCode, Layers, GitBranch,
   BookOpen, FolderCheck, ChevronDown, ChevronUp, Database,
   Activity, ShieldAlert, Info, SlidersHorizontal, Shield, Sparkles, Lightbulb,
-  Award, Cpu, Boxes, Target, Users, HelpCircle, Code2, AlertCircle
+  Award, Cpu, Boxes, Target, Users, HelpCircle, Code2, AlertCircle, FileText,
+  Zap, GraduationCap, Flame, Eye, EyeOff, CheckSquare, Square
 } from 'lucide-react';
+import {
+  generateVivaQuestions,
+  fetchVivaQuestions,
+  updateVivaPracticeStatus,
+  regenerateVivaQuestion,
+  fetchVivaProgress,
+} from '../services/vivaApi';
+import type {
+  VivaQuestion as FullVivaQuestion,
+  VivaQuestionSet,
+  VivaMode,
+  VivaProgress,
+} from '../types/viva';
 import {
   fetchProject,
   fetchProjectStructure,
@@ -24,7 +38,8 @@ import {
 import {
   fetchAnalysis,
   downloadReport,
-  requestReport,
+  triggerEvaluation,
+  downloadEvaluationJson,
   triggerAIAssistance,
   fetchAIAssistance,
   fetchInnovationAnalysis,
@@ -935,8 +950,8 @@ function CodeQualityTab({
                   <td className="p-2.5 border-r border-[#121212]">
                     {f.avgComplexity !== undefined && f.avgComplexity !== null ? (
                       <span className={`px-1.5 py-0.5 border border-[#121212] font-bold text-[10px] ${f.avgComplexity > 10 ? 'bg-[#FF5C8D] text-white' :
-                          f.avgComplexity > 5 ? 'bg-[#ffe600] text-[#1c1b1b]' :
-                            'bg-[#00E5BE] text-[#1c1b1b]'
+                        f.avgComplexity > 5 ? 'bg-[#ffe600] text-[#1c1b1b]' :
+                          'bg-[#00E5BE] text-[#1c1b1b]'
                         }`}>
                         {f.avgComplexity} (max {f.maxComplexity ?? f.avgComplexity})
                       </span>
@@ -1007,9 +1022,9 @@ function CodeQualityTab({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-0.5 border border-[#121212] font-mono text-[10px] font-bold uppercase ${finding.severity === 'High' ? 'bg-[#FF5C8D] text-white' :
-                          finding.severity === 'Medium' ? 'bg-[#ffe600] text-[#1c1b1b]' :
-                            finding.severity === 'Low' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
-                              'bg-[#F2ECE1] text-[#1c1b1b]'
+                        finding.severity === 'Medium' ? 'bg-[#ffe600] text-[#1c1b1b]' :
+                          finding.severity === 'Low' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
+                            'bg-[#F2ECE1] text-[#1c1b1b]'
                         }`}>
                         {finding.severity}
                       </span>
@@ -1156,12 +1171,12 @@ function SimilarityTab({
           <div className="mt-1">
             <span
               className={`font-mono text-[11px] font-bold px-2 py-0.5 border border-[#121212] uppercase ${similarity?.similarityCategory === 'high'
-                  ? 'bg-[#FF5C8D] text-white'
-                  : similarity?.similarityCategory === 'moderate'
-                    ? 'bg-[#ffe600] text-[#1c1b1b]'
-                    : similarity?.similarityCategory === 'low'
-                      ? 'bg-[#00E5BE] text-[#1c1b1b]'
-                      : 'bg-[#F2ECE1] text-[#4b4731]'
+                ? 'bg-[#FF5C8D] text-white'
+                : similarity?.similarityCategory === 'moderate'
+                  ? 'bg-[#ffe600] text-[#1c1b1b]'
+                  : similarity?.similarityCategory === 'low'
+                    ? 'bg-[#00E5BE] text-[#1c1b1b]'
+                    : 'bg-[#F2ECE1] text-[#4b4731]'
                 }`}
             >
               {similarity?.similarityCategory ? similarity.similarityCategory.toUpperCase() : 'NONE'}
@@ -1257,12 +1272,12 @@ function SimilarityTab({
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`font-mono text-[11px] font-bold px-2.5 py-1 border border-[#121212] uppercase ${m.similarityCategory === 'high'
-                            ? 'bg-[#FF5C8D] text-white'
-                            : m.similarityCategory === 'moderate'
-                              ? 'bg-[#ffe600] text-[#1c1b1b]'
-                              : m.similarityCategory === 'low'
-                                ? 'bg-[#00E5BE] text-[#1c1b1b]'
-                                : 'bg-[#F2ECE1] text-[#4b4731]'
+                          ? 'bg-[#FF5C8D] text-white'
+                          : m.similarityCategory === 'moderate'
+                            ? 'bg-[#ffe600] text-[#1c1b1b]'
+                            : m.similarityCategory === 'low'
+                              ? 'bg-[#00E5BE] text-[#1c1b1b]'
+                              : 'bg-[#F2ECE1] text-[#4b4731]'
                           }`}
                       >
                         {m.similarityCategory.toUpperCase()} SIGNAL
@@ -2343,9 +2358,9 @@ function DocumentationTab({
                           {doc.relativePath}
                         </span>
                         <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border border-[#121212] ${doc.extractionStatus === 'success' ? 'bg-[#00E5BE] text-[#1c1b1b]' :
-                            doc.extractionStatus === 'partial' ? 'bg-[#ffe600] text-[#1c1b1b]' :
-                              doc.extractionStatus === 'empty_scanned_image' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
-                                'bg-[#FF5C8D] text-white'
+                          doc.extractionStatus === 'partial' ? 'bg-[#ffe600] text-[#1c1b1b]' :
+                            doc.extractionStatus === 'empty_scanned_image' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
+                              'bg-[#FF5C8D] text-white'
                           }`}>
                           {doc.extractionStatus.replace(/_/g, ' ').toUpperCase()}
                         </span>
@@ -2754,30 +2769,53 @@ function getFeatureEvidenceBadge(type: string) {
       };
     case 'documented_feature':
       return {
-        label: 'Documented Only',
+        label: 'Documented Feature Claim',
         bg: 'bg-[#FFE600] text-[#121212]',
         icon: BookOpen,
       };
     case 'detected_implementation':
       return {
-        label: 'Detected Implementation',
+        label: 'Detected Code Component',
         bg: 'bg-[#D4F0FF] text-[#004d80]',
         icon: Code2,
       };
     case 'unverified_claim':
       return {
-        label: 'Unverified Claim',
+        label: 'Unverified Feature Claim',
         bg: 'bg-[#FFDEE7] text-[#990033]',
         icon: AlertCircle,
+      };
+    case 'proposed_future':
+      return {
+        label: 'Proposed / Roadmap Feature',
+        bg: 'bg-[#D8B4FE] text-[#121212]',
+        icon: Sparkles,
       };
     case 'insufficient_information':
     default:
       return {
-        label: 'Insufficient Data',
+        label: 'Insufficient Information',
         bg: 'bg-[#E2DDD3] text-[#4b4731]',
         icon: HelpCircle,
       };
   }
+}
+
+function getEvidenceStrengthBadge(confidence: number | null | undefined): { label: string; bg: string } {
+  if (confidence === undefined || confidence === null) {
+    return { label: 'Direct Metric', bg: 'bg-[#FAF6EE] text-[#4b4731] border-[#121212]' };
+  }
+  const val = Number(confidence);
+  if (val >= 1.0) {
+    return { label: 'Direct Metric', bg: 'bg-[#EBF7F5] text-[#006b58] border-[#006b58]' };
+  }
+  if (val >= 0.8) {
+    return { label: 'Strong Heuristic', bg: 'bg-[#FFF9E6] text-[#7a5c00] border-[#7a5c00]' };
+  }
+  if (val >= 0.6) {
+    return { label: 'Moderate Heuristic', bg: 'bg-[#FAF6EE] text-[#4b4731] border-[#121212]' };
+  }
+  return { label: 'Indirect Signal', bg: 'bg-[#FAF6EE] text-[#7c775f] border-[#7c775f]' };
 }
 
 function formatComparisonMethod(method?: string) {
@@ -2819,22 +2857,16 @@ function OpenRouterUnavailableBanner({
   onRetry?: () => void;
   analyzing?: boolean;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
   const errorType = errorInfo?.error_type;
   const statusCode = errorInfo?.status_code;
-
-  const title = errorInfo?.title || 'OpenRouter AI Service Unavailable';
-  const subtitle =
-    errorInfo?.subtitle ||
-    'AI interpretation could not be completed. Your deterministic project analysis is still available.';
 
   let explanation = errorInfo?.user_message;
   let action = errorInfo?.recommended_action;
 
   if (errorType === 'auth_invalid_key' || statusCode === 401) {
-    explanation = explanation || 'Your OpenRouter API key is invalid or unauthorized.';
-    action =
-      action ||
-      'Your OpenRouter API key is invalid. Update the key in the backend configuration.';
+    explanation = explanation || 'Your AI API key is invalid or unauthorized.';
+    action = action || 'Update the key in backend/.env configuration.';
   } else if (
     errorType === 'account_quota_exceeded' ||
     statusCode === 402 ||
@@ -2842,17 +2874,17 @@ function OpenRouterUnavailableBanner({
   ) {
     explanation =
       explanation ||
-      'Your OpenRouter account quota has been exceeded or credits are depleted.';
+      'AI account quota has been exceeded or credits are depleted.';
     action =
       action ||
-      'You can configure another authorized OpenRouter account by updating your API key.';
+      'You can configure another authorized AI account or wait for quota reset.';
   } else if (errorType === 'upstream_provider_overloaded' || statusCode === 429) {
     explanation =
       explanation ||
-      'The selected model provider is temporarily overloaded.';
+      'The selected model provider is temporarily overloaded (HTTP 429).';
     action =
       action ||
-      'The selected model provider is temporarily overloaded. You can try again later or configure another available model/provider. Switching accounts may not resolve this issue.';
+      'The upstream model is temporarily overloaded. You can retry in a few moments.';
   } else if (
     errorType === 'service_unavailable' ||
     statusCode === 502 ||
@@ -2860,18 +2892,18 @@ function OpenRouterUnavailableBanner({
   ) {
     explanation =
       explanation ||
-      'OpenRouter or upstream provider is temporarily unavailable.';
+      'AI service or upstream provider is temporarily unavailable.';
     action =
       action ||
-      'OpenRouter or upstream provider is temporarily unavailable. Please try again later.';
+      'AI service is temporarily unavailable. Please try again later.';
   } else if (errorType === 'network_error') {
-    explanation = explanation || 'Unable to connect to OpenRouter network.';
+    explanation = explanation || 'Unable to connect to AI provider network.';
     action =
       action ||
-      'Unable to connect to OpenRouter. Please check your internet connection or backend network settings.';
+      'Unable to connect to AI provider. Please check your internet connection or backend network settings.';
   } else if (errorType === 'timeout' || statusCode === 504) {
-    explanation = explanation || 'OpenRouter request timed out.';
-    action = action || 'OpenRouter request timed out. Please try again later.';
+    explanation = explanation || 'AI request timed out.';
+    action = action || 'AI request timed out. Please try again later.';
   } else {
     explanation =
       explanation ||
@@ -2882,64 +2914,63 @@ function OpenRouterUnavailableBanner({
       'Your deterministic project analysis is still available and authoritative.';
   }
 
+  const bannerTitle = errorInfo?.title || 'AI interpretation is temporarily unavailable. Deterministic findings are still available.';
+
   return (
     <div
-      className="p-4 bg-[#FFF9E6] border-2 border-[#121212] flex flex-col gap-2.5"
-      style={{ boxShadow: '3px 3px 0px #121212' }}
+      className="p-3 bg-[#FFF9E6] border-2 border-[#121212] flex flex-col gap-2"
+      style={{ boxShadow: '2.5px 2.5px 0px #121212' }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5">
-          <div className="p-1 bg-[#ffe600] border border-[#121212] shrink-0 mt-0.5">
-            <AlertCircle size={18} className="text-[#1c1b1b]" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <AlertCircle size={16} className="text-[#996500] shrink-0" />
+          <span className="font-sans text-xs font-semibold text-[#1c1b1b]">
+            {bannerTitle}
+          </span>
+          {statusCode && (
+            <span className="font-mono text-[9px] font-bold bg-white border border-[#121212] px-1.5 py-0.2 shrink-0">
+              HTTP {statusCode}
+            </span>
+          )}
+          {errorType && (
+            <span className="font-mono text-[9px] bg-[#FAF6EE] text-[#4b4731] border border-[#121212] px-1.5 py-0.2 shrink-0">
+              {errorType}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="font-mono text-[10px] font-bold text-[#4b4731] hover:text-[#1c1b1b] underline cursor-pointer"
+          >
+            {showDetails ? 'Hide Details' : 'Details'}
+          </button>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              disabled={analyzing}
+              className="btn-secondary text-[10px] py-0.5 px-2 flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw size={10} className={analyzing ? 'animate-spin' : ''} />
+              {analyzing ? 'Retrying...' : 'Retry'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showDetails && (
+        <div className="bg-white border border-[#121212] p-2.5 flex flex-col gap-1 text-[11px] font-sans mt-1">
+          <div>
+            <strong className="font-mono uppercase text-[9px] text-[#4b4731] mr-1.5">Cause:</strong>
+            <span className="text-[#1c1b1b]">{explanation}</span>
           </div>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-display font-bold text-sm text-[#1c1b1b]">
-                {title}
-              </h4>
-              {statusCode && (
-                <span className="font-mono text-[9px] font-bold bg-white border border-[#121212] px-1.5 py-0.2">
-                  HTTP {statusCode}
-                </span>
-              )}
-              {errorType && (
-                <span className="font-mono text-[9px] bg-[#FAF6EE] text-[#4b4731] border border-[#121212] px-1.5 py-0.2">
-                  {errorType}
-                </span>
-              )}
-            </div>
-            <p className="font-sans text-xs text-[#4b4731] mt-0.5 font-medium">
-              {subtitle}
-            </p>
+            <strong className="font-mono uppercase text-[9px] text-[#7a5c00] mr-1.5">Action:</strong>
+            <span className="text-[#4b4731]">{action}</span>
           </div>
         </div>
-
-        {onRetry && (
-          <button
-            onClick={onRetry}
-            disabled={analyzing}
-            className="btn-secondary text-[11px] py-1 px-2.5 shrink-0 flex items-center gap-1 cursor-pointer"
-          >
-            <RefreshCw size={11} className={analyzing ? 'animate-spin' : ''} />
-            {analyzing ? 'Retrying...' : 'Retry'}
-          </button>
-        )}
-      </div>
-
-      <div className="bg-white border border-[#121212] p-2.5 flex flex-col gap-1 text-xs font-sans">
-        <div className="text-[#1c1b1b]">
-          <span className="font-mono font-bold text-[10px] text-[#4b4731] uppercase mr-1.5">
-            Cause:
-          </span>
-          {explanation}
-        </div>
-        <div className="text-[#7a5c00]">
-          <span className="font-mono font-bold text-[10px] text-[#7a5c00] uppercase mr-1.5">
-            Action:
-          </span>
-          {action}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -3044,8 +3075,7 @@ function InnovationSection({
   const detectedCount = features.filter((f) => f.evidence_type === 'detected_implementation').length;
   const docOnlyCount = features.filter((f) => f.evidence_type === 'documented_feature').length;
   const unverifiedCount = features.filter((f) => f.evidence_type === 'unverified_claim').length;
-
-
+  const proposedCount = features.filter((f) => f.evidence_type === 'proposed_future').length;
 
   return (
     <div className="flex flex-col gap-6 pt-6 border-t-2 border-[#121212]">
@@ -3055,11 +3085,16 @@ function InnovationSection({
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="font-mono text-[10px] font-bold bg-[#ffe600] px-2 py-0.5 border border-[#121212] uppercase">
-                Phase 7B Engine
+                {inno.llmProvider === 'gemini' ? 'Google Gemini 2.5 Flash' : 'Phase 7B Engine'}
               </span>
               <span className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] ${advisoryStyle.badgeBg}`}>
                 {advisoryCategory}
               </span>
+              {inno.confidenceClassification && (
+                <span className="font-mono text-[10px] font-bold bg-[#EBF7F5] text-[#006b58] px-2 py-0.5 border border-[#006b58]">
+                  Confidence: {inno.confidenceClassification}
+                </span>
+              )}
               <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] text-[#4b4731] px-2 py-0.5 border border-[#121212]">
                 Cohort: {inno.cohortSize} projects
               </span>
@@ -3069,7 +3104,7 @@ function InnovationSection({
               Innovation &amp; Distinctiveness Analysis
             </h2>
             <p className="font-sans text-xs text-[#4b4731] mt-0.5">
-              Assesses distinctive technical contributions and compares features against peer projects.
+              Assesses distinctive technical contributions and compares features against peer projects with transparent confidence ratings.
             </p>
           </div>
           <button
@@ -3081,6 +3116,13 @@ function InnovationSection({
             {analyzing ? 'Analyzing project...' : 'Re-analyze Innovation'}
           </button>
         </div>
+
+        {inno.confidenceRationale && (
+          <div className="mb-4 p-2.5 bg-[#FAF6EE] border border-[#121212] text-xs font-sans text-[#4b4731] flex items-center gap-2">
+            <Info size={14} className="shrink-0 text-[#006b58]" />
+            <span><strong className="font-mono text-[10px] text-[#1c1b1b] uppercase">Confidence Rationale:</strong> {inno.confidenceRationale}</span>
+          </div>
+        )}
 
         {/* Re-analysis error banner */}
         {error && (
@@ -3124,7 +3166,12 @@ function InnovationSection({
               Problem Being Solved
             </span>
             <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed">
-              {(profile as any)?.problem_statement || profile?.problemStatement || 'No explicit problem statement declared in documentation.'}
+              {((profile as any)?.problem_statement || profile?.problemStatement) &&
+                ((profile as any)?.problem_statement || profile?.problemStatement) !== 'Not identified from the available project documents.' ? (
+                (profile as any)?.problem_statement || profile?.problemStatement
+              ) : (
+                <span className="text-[#7c775f] italic">Not identified from the available project documents.</span>
+              )}
             </p>
           </div>
 
@@ -3134,7 +3181,12 @@ function InnovationSection({
               Proposed Solution
             </span>
             <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed">
-              {(profile as any)?.proposed_solution || profile?.proposedSolution || 'No solution overview extracted from documentation.'}
+              {((profile as any)?.proposed_solution || profile?.proposedSolution) &&
+                ((profile as any)?.proposed_solution || profile?.proposedSolution) !== 'Not identified from the available project documents.' ? (
+                (profile as any)?.proposed_solution || profile?.proposedSolution
+              ) : (
+                <span className="text-[#7c775f] italic">Not identified from the available project documents.</span>
+              )}
             </p>
           </div>
         </div>
@@ -3179,11 +3231,14 @@ function InnovationSection({
             </span>
           </div>
           {/* Quick counts */}
-          <div className="flex items-center gap-2 font-mono text-[10px]">
+          <div className="flex items-center gap-2 font-mono text-[10px] flex-wrap">
             <span className="bg-[#00E5BE] text-[#121212] px-2 py-0.5 border border-[#121212] font-bold">{verifiedCount} Verified</span>
             <span className="bg-[#D4F0FF] text-[#004d80] px-2 py-0.5 border border-[#121212] font-bold">{detectedCount} Code</span>
             <span className="bg-[#FFE600] text-[#121212] px-2 py-0.5 border border-[#121212] font-bold">{docOnlyCount} Doc</span>
             <span className="bg-[#FFDEE7] text-[#990033] px-2 py-0.5 border border-[#121212] font-bold">{unverifiedCount} Unverified</span>
+            {proposedCount > 0 && (
+              <span className="bg-[#D8B4FE] text-[#121212] px-2 py-0.5 border border-[#121212] font-bold">{proposedCount} Roadmap</span>
+            )}
           </div>
         </div>
 
@@ -3302,27 +3357,31 @@ function InnovationSection({
                             </div>
                             <span className="font-bold text-[11px]">{simPct}%</span>
                           </div>
+                          <span className="font-mono text-[9px] text-[#7c775f] block mt-0.5">Screening Signal</span>
                         </td>
-                        <td className="p-2.5 border-r border-[#121212] text-[#4b4731] font-sans text-xs max-w-xs truncate">
-                          {m.difference_summary || m.differenceSummary || 'Distinct implementation architectures.'}
+                        <td className="p-2.5 border-r border-[#121212] text-[#4b4731] font-sans text-xs max-w-xs">
+                          <p className="line-clamp-2">{m.difference_summary || m.differenceSummary || 'Distinct implementation architectures.'}</p>
                         </td>
                         <td className="p-2.5 whitespace-nowrap">
                           <button
                             onClick={() => setExpandedMatch(isExp ? null : (m.compared_project_id ?? m.comparedProjectId))}
-                            className="font-mono text-[10px] font-bold text-[#1c1b1b] underline hover:text-[#00876c]"
+                            className="font-mono text-[10px] font-bold text-[#1c1b1b] underline hover:text-[#00876c] cursor-pointer"
                           >
-                            {isExp ? 'Hide' : 'Details'}
+                            {isExp ? 'Hide Details' : 'View Details'}
                           </button>
                         </td>
                       </tr>
                       {isExp && (
                         <tr className="bg-[#FAF6EE] border-b border-[#121212]">
-                          <td colSpan={4} className="p-3 text-xs font-mono">
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>Problem Sim: {Math.round((m.problem_similarity ?? m.problemSimilarity ?? 0) * 100)}%</div>
-                              <div>Solution Sim: {Math.round((m.solution_similarity ?? m.solutionSimilarity ?? 0) * 100)}%</div>
-                              <div>Tech Overlap: {Math.round((m.technology_overlap ?? m.technologyOverlap ?? 0) * 100)}%</div>
+                          <td colSpan={4} className="p-3 text-xs font-mono space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div className="bg-white border border-[#121212] p-1.5">Problem Sim: {Math.round((m.problem_similarity ?? m.problemSimilarity ?? 0) * 100)}%</div>
+                              <div className="bg-white border border-[#121212] p-1.5">Solution Sim: {Math.round((m.solution_similarity ?? m.solutionSimilarity ?? 0) * 100)}%</div>
+                              <div className="bg-white border border-[#121212] p-1.5">Tech Overlap: {Math.round((m.technology_overlap ?? m.technologyOverlap ?? 0) * 100)}%</div>
                             </div>
+                            <p className="font-sans text-[11px] text-[#4b4731] italic">
+                              Notice: Similarity indices are automated screening signals intended for viva preparation, not plagiarism determinations.
+                            </p>
                           </td>
                         </tr>
                       )}
@@ -3349,14 +3408,16 @@ function InnovationSection({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { key: 'problem_distinctiveness', label: 'Problem Distinctiveness', desc: 'Distinctness of problem scope' },
-            { key: 'solution_distinctiveness', label: 'Solution Distinctiveness', desc: 'Distinctness of technical approach' },
-            { key: 'feature_differentiation', label: 'Feature Differentiation', desc: 'Non-standard features implemented' },
-            { key: 'technical_contribution', label: 'Technical Contribution', desc: 'Complexity of engineering effort' },
-            { key: 'evidence_quality', label: 'Supporting Evidence', desc: 'Quality of verification evidence' },
-          ].map(({ key, label, desc }) => {
-            const rawScore = (scores as any)[key]?.score ?? (scores as any)[key] ?? 0;
-            const pct = Math.round(Number(rawScore) * 100);
+            { key: 'problem_distinctiveness', label: 'Problem Distinctiveness', desc: 'Distinctness of problem scope from cohort' },
+            { key: 'solution_distinctiveness', label: 'Solution Distinctiveness', desc: 'Distinctness of technical approach from cohort' },
+            { key: 'feature_differentiation', label: 'Feature Differentiation', desc: 'Non-standard features distinct from peers' },
+            { key: 'technical_contribution', label: 'Technical Contribution', desc: 'Engineering complexity & component depth' },
+            { key: 'evidence_supporting_claim', altKey: 'evidence_quality', label: 'Supporting Evidence', desc: 'Proportion of features verified in code' },
+          ].map(({ key, altKey, label, desc }) => {
+            const rawScore = (scores as any)[key]?.score ?? (scores as any)[key] ?? (altKey ? ((scores as any)[altKey]?.score ?? (scores as any)[altKey]) : undefined);
+            const isInsufficient = rawScore === null || rawScore === undefined;
+            const pct = isInsufficient ? 0 : Math.round(Number(rawScore) * 100);
+
             return (
               <div key={key} className="p-3 bg-[#FAF6EE] border border-[#121212] flex flex-col justify-between">
                 <div>
@@ -3368,18 +3429,31 @@ function InnovationSection({
                   </span>
                 </div>
                 <div className="mt-3">
-                  <div className="w-full h-2 bg-white border border-[#121212] overflow-hidden mb-1">
-                    <div
-                      className="h-full bg-[#00E5BE]"
-                      style={{ width: `${Math.max(pct, 4)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between font-mono text-[10px] font-bold">
-                    <span>{pct}%</span>
-                    <span className="text-[#4b4731]">
-                      {pct >= 70 ? 'High' : pct >= 40 ? 'Moderate' : 'Baseline'}
-                    </span>
-                  </div>
+                  {isInsufficient ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="font-mono text-[9px] font-bold bg-[#E2DDD3] text-[#4b4731] px-1.5 py-0.5 border border-[#121212] inline-block w-fit">
+                        Insufficient Evidence
+                      </span>
+                      <span className="font-sans text-[9px] text-[#7c775f] leading-tight">
+                        Not enough data or cohort peers to evaluate.
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="w-full h-2 bg-white border border-[#121212] overflow-hidden mb-1">
+                        <div
+                          className="h-full bg-[#00E5BE]"
+                          style={{ width: `${Math.max(pct, 4)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between font-mono text-[10px] font-bold">
+                        <span>{pct}%</span>
+                        <span className="text-[#4b4731]">
+                          {pct >= 70 ? 'High' : pct >= 40 ? 'Moderate' : 'Baseline'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -3416,6 +3490,42 @@ function InnovationSection({
                 <ul className="list-disc list-inside space-y-0.5 text-[#1c1b1b]">
                   {interpretation.distinctive_elements.map((el: string, i: number) => (
                     <li key={i}>{el}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Innovation Strengths */}
+            {interpretation.innovation_strengths && interpretation.innovation_strengths.length > 0 && (
+              <div className="p-3 bg-[#EBF7F5] border border-[#006b58]">
+                <strong className="font-mono text-[10px] uppercase text-[#006b58] block mb-1">Innovation Strengths</strong>
+                <ul className="list-disc list-inside space-y-0.5 text-[#1c1b1b]">
+                  {interpretation.innovation_strengths.map((str: string, i: number) => (
+                    <li key={i}>{str}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Missing Evidence / Deficits */}
+            {interpretation.missing_evidence && interpretation.missing_evidence.length > 0 && (
+              <div className="p-3 bg-[#FFF0F5] border border-[#b43b5b]">
+                <strong className="font-mono text-[10px] uppercase text-[#b43b5b] block mb-1">Identified Evidence Deficits &amp; Unverified Claims</strong>
+                <ul className="list-disc list-inside space-y-0.5 text-[#1c1b1b]">
+                  {interpretation.missing_evidence.map((me: string, i: number) => (
+                    <li key={i}>{me}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Improvement Recommendations */}
+            {interpretation.improvement_recommendations && interpretation.improvement_recommendations.length > 0 && (
+              <div className="p-3 bg-[#FAF6EE] border border-[#121212]">
+                <strong className="font-mono text-[10px] uppercase text-[#7a5c00] block mb-1">Engineering Recommendations</strong>
+                <ul className="list-disc list-inside space-y-0.5 text-[#1c1b1b]">
+                  {interpretation.improvement_recommendations.map((rec: string, i: number) => (
+                    <li key={i}>{rec}</li>
                   ))}
                 </ul>
               </div>
@@ -3496,10 +3606,62 @@ function AIAssistanceTab({
   const hasInterpretation = Boolean(
     interpretation.executive_summary || interpretation.explanation_of_patterns,
   );
-  const evidenceSignals = Array.isArray(ai?.evidenceSummary) ? ai.evidenceSummary : [];
+  const evidenceSignals: AIAssistanceSignal[] = Array.isArray(ai?.evidenceSummary) ? ai.evidenceSummary : [];
   const availableSignals = evidenceSignals.filter((signal) => (signal.availabilityStatus || (signal as any).availability_status) === 'available');
   const unavailableSignals = evidenceSignals.filter((signal) => (signal.availabilityStatus || (signal as any).availability_status) !== 'available');
   const list = (items?: any) => (Array.isArray(items) && items.length > 0 ? items : ['None recorded.']);
+
+  const [filter, setFilter] = useState<'all' | 'available' | 'unavailable' | 'code_quality' | 'similarity' | 'documentation' | 'git_history'>('all');
+  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({
+    code_quality: false,
+    similarity: false,
+    documentation: false,
+    git_history: false,
+    other: false,
+  });
+  const [expandedSignals, setExpandedSignals] = useState<Record<string, boolean>>({});
+
+  const findings = Array.isArray(interpretation?.findings) ? interpretation.findings : [];
+  const [findingCategoryFilter, setFindingCategoryFilter] = useState<string>('all');
+  const [findingPriorityFilter, setFindingPriorityFilter] = useState<string>('all');
+  const [expandedFindings, setExpandedFindings] = useState<Record<number, boolean>>({});
+
+  const toggleFinding = (idx: number) => {
+    setExpandedFindings((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const findingCategories = Array.from(new Set(findings.map((f: any) => f.category).filter(Boolean)));
+
+  const filteredFindings = findings.filter((f: any) => {
+    if (findingCategoryFilter !== 'all' && f.category !== findingCategoryFilter) return false;
+    if (findingPriorityFilter !== 'all' && (f.priority || '').toLowerCase() !== findingPriorityFilter.toLowerCase()) return false;
+    return true;
+  });
+
+  const getPriorityStyle = (priority?: string) => {
+    const p = (priority || 'medium').toLowerCase();
+    switch (p) {
+      case 'critical':
+        return { label: 'CRITICAL', bg: 'bg-[#FF5C8D] text-white border-[#121212]' };
+      case 'high':
+        return { label: 'HIGH', bg: 'bg-[#FFF4D6] text-[#b43b5b] border-[#b43b5b]' };
+      case 'medium':
+        return { label: 'MEDIUM', bg: 'bg-[#FFE600] text-[#121212] border-[#121212]' };
+      case 'low':
+        return { label: 'LOW', bg: 'bg-[#EBF7F5] text-[#006b58] border-[#006b58]' };
+      case 'informational':
+      default:
+        return { label: 'INFO', bg: 'bg-[#FAF6EE] text-[#4b4731] border-[#121212]' };
+    }
+  };
+
+  const toggleSource = (sourceId: string) => {
+    setExpandedSources((prev) => ({ ...prev, [sourceId]: !prev[sourceId] }));
+  };
+
+  const toggleSignal = (signalId: string) => {
+    setExpandedSignals((prev) => ({ ...prev, [signalId]: !prev[signalId] }));
+  };
 
   const assignedSignals = new Set<string>();
   EVIDENCE_SOURCES.forEach((s) => {
@@ -3519,6 +3681,43 @@ function AIAssistanceTab({
 
   const detStatus = formatAnalysisStatus(ai?.analysisStatus || 'not_started');
   const llmStatus = formatLLMStatus(ai?.llmInterpretationStatus);
+
+  const activeSourcesCount = EVIDENCE_SOURCES.filter((s) =>
+    getSignalsForSource(evidenceSignals, s.id).some((sig) => (sig.availabilityStatus || (sig as any).availability_status) === 'available')
+  ).length;
+
+  // Prioritize key main findings (one per source module)
+  const mainFindings = (() => {
+    const findings: Array<{
+      signal: AIAssistanceSignal;
+      sourceLabel: string;
+      badgeBg: string;
+    }> = [];
+
+    for (const s of EVIDENCE_SOURCES) {
+      const sigs = getSignalsForSource(availableSignals, s.id);
+      if (sigs.length > 0) {
+        findings.push({
+          signal: sigs[0],
+          sourceLabel: s.name,
+          badgeBg: s.badgeBg,
+        });
+      }
+    }
+    return findings;
+  })();
+
+  const getFilteredSignalsForSource = (sourceId: string) => {
+    const sourceSignals = getSignalsForSource(evidenceSignals, sourceId);
+    if (filter === 'available') return sourceSignals.filter((s) => (s.availabilityStatus || (s as any).availability_status) === 'available');
+    if (filter === 'unavailable') return sourceSignals.filter((s) => (s.availabilityStatus || (s as any).availability_status) !== 'available');
+    return sourceSignals;
+  };
+
+  const displayedSources = EVIDENCE_SOURCES.filter((s) => {
+    if (filter === 'all' || filter === 'available' || filter === 'unavailable') return true;
+    return filter === s.id;
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -3573,27 +3772,35 @@ function AIAssistanceTab({
           </div>
         )}
 
-        {/* Status badges bar */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className={`font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border border-[#121212] ${detStatus.bg}`}>
-            {detStatus.label}
-          </span>
-          <span className={`font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border border-[#121212] ${llmStatus.bg}`}>
-            {llmStatus.label}
-          </span>
-          {ai?.rulesVersion && (
-            <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] text-[#4b4731] px-2 py-1 border border-[#121212]">
-              Rules: {ai.rulesVersion}
-            </span>
-          )}
-          {ai?.llmModel && (
-            <span className="font-mono text-[10px] bg-white text-[#4b4731] px-2 py-1 border border-[#121212]">
-              Model: {ai.llmModel}
-            </span>
-          )}
+        {/* ── Compact Analysis Summary Bar ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+          <div className="bg-[#FAF6EE] border border-[#121212] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#4b4731] block">Analysis Status</span>
+            <span className="font-mono text-[11px] font-bold text-[#1c1b1b]">{detStatus.label}</span>
+          </div>
+          <div className="bg-[#FAF6EE] border border-[#121212] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#4b4731] block">Total Signals</span>
+            <span className="font-mono text-sm font-bold text-[#1c1b1b]">{evidenceSignals.length}</span>
+          </div>
+          <div className="bg-[#EBF7F5] border border-[#006b58] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#006b58] block">Available</span>
+            <span className="font-mono text-sm font-bold text-[#006b58]">{availableSignals.length}</span>
+          </div>
+          <div className="bg-[#FFF0F5] border border-[#b43b5b] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#b43b5b] block">Unavailable</span>
+            <span className="font-mono text-sm font-bold text-[#b43b5b]">{unavailableSignals.length}</span>
+          </div>
+          <div className="bg-[#FAF6EE] border border-[#121212] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#4b4731] block">Evidence Sources</span>
+            <span className="font-mono text-sm font-bold text-[#1c1b1b]">{activeSourcesCount} / {EVIDENCE_SOURCES.length}</span>
+          </div>
+          <div className="bg-[#FAF6EE] border border-[#121212] p-2 text-center">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[#4b4731] block">LLM Interpretation</span>
+            <span className="font-mono text-[11px] font-bold text-[#1c1b1b]">{llmStatus.label}</span>
+          </div>
         </div>
 
-        {/* Advisory Assessment Banner */}
+        {/* ── Deterministic Advisory Assessment Banner ── */}
         <div className={`${advisoryStyle.bg} border-2 ${advisoryStyle.border} p-5`} style={{ boxShadow: '2px 2px 0px #121212' }}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#121212] pb-3 mb-3">
             <div className="flex items-center gap-2">
@@ -3611,20 +3818,74 @@ function AIAssistanceTab({
           </h3>
           <div className="mt-3 bg-white border border-[#121212] p-3 text-xs text-[#4b4731] leading-relaxed">
             <span className="font-bold text-[#1c1b1b] font-mono uppercase text-[10px] block mb-0.5">
-              Advisory Evaluation Notice (No AI Probability)
+              Faculty Advisory Evaluation Notice (No AI Probability)
             </span>
-            This category is synthesized strictly from deterministic artifact signals (structure, commit velocity, documented claims, and token similarity). ProjectLens does not compute or display a fabricated AI probability percentage or misconduct score. All findings are diagnostic aids for faculty review during viva.
+            Evidence signals and advisory categories are screening indicators synthesized strictly from deterministic artifact analysis. They do NOT constitute proof of AI authorship or academic misconduct. ProjectLens does not compute or display a fabricated AI probability score.
           </div>
         </div>
       </div>
 
-      {/* ── Deterministic Evidence Signals Grouped by Source ── */}
+      {/* ── Main Findings (Prioritized Highlights) ── */}
+      {mainFindings.length > 0 && (
+        <div className="bg-white border-[2.5px] border-[#121212] p-5" style={{ boxShadow: '4px 4px 0px #121212' }}>
+          <div className="border-b-2 border-[#121212] pb-2 mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-display font-bold text-base text-[#1c1b1b] flex items-center gap-1.5">
+                <Activity size={16} />
+                Key Main Findings
+              </h3>
+              <p className="font-sans text-xs text-[#4b4731]">
+                Prioritized deterministic observations across evaluated modules.
+              </p>
+            </div>
+            <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+              {mainFindings.length} Highlighted
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {mainFindings.map((item, idx) => {
+              const sig = item.signal;
+              const sigId = sig.signalId || (sig as any).signal_id || `main-${idx}`;
+              const sigObserved = sig.observedValue || (sig as any).observed_value || 'None';
+              const sigExplanation = sig.explanation || 'No explanation provided.';
+              const strength = getEvidenceStrengthBadge(sig.confidence);
+              return (
+                <div key={sigId} className="p-3 bg-[#FAF6EE] border-2 border-[#121212] flex flex-col justify-between gap-2" style={{ boxShadow: '2px 2px 0px #121212' }}>
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                      <span className={`font-mono text-[9px] font-bold uppercase px-2 py-0.5 border border-[#121212] ${item.badgeBg}`}>
+                        {item.sourceLabel}
+                      </span>
+                      <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border ${strength.bg}`}>
+                        {strength.label}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[11px] font-bold text-[#1c1b1b] mb-1">
+                      {sigId}
+                    </div>
+                    <p className="font-sans text-xs text-[#1c1b1b] font-medium leading-snug line-clamp-2">
+                      {sigExplanation}
+                    </p>
+                  </div>
+                  <div className="bg-white border border-[#121212] px-2.5 py-1.5 font-mono text-[11px] text-[#4b4731] truncate">
+                    <strong className="text-[#1c1b1b] mr-1">Observed:</strong>
+                    {String(sigObserved)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Deterministic Evidence Signals by Source ── */}
       <div className="bg-white border-[2.5px] border-[#121212] p-6" style={{ boxShadow: '4px 4px 0px #121212' }}>
-        <div className="flex flex-col md:flex-row md:items-start justify-between pb-3 border-b-2 border-[#121212] mb-6 gap-2">
+        <div className="flex flex-col md:flex-row md:items-start justify-between pb-3 border-b-2 border-[#121212] mb-4 gap-2">
           <div>
-            <h3 className="font-display font-bold text-xl">Deterministic Evidence Signals</h3>
+            <h3 className="font-display font-bold text-xl">Deterministic Evidence Signals by Source</h3>
             <p className="font-sans text-xs text-[#4b4731] mt-0.5">
-              Signals collected from completed ProjectLens evaluation modules (Phases 3–6).
+              Compact expandable modules with honest heuristic strength ratings.
             </p>
           </div>
           <div className="font-mono text-[11px] text-[#4b4731] bg-[#FAF6EE] border border-[#121212] px-3 py-1">
@@ -3632,22 +3893,52 @@ function AIAssistanceTab({
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
-          {EVIDENCE_SOURCES.map((source) => {
-            const sourceSignals = getSignalsForSource(evidenceSignals, source.id);
+        {/* Evidence Filter Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-[#FAF6EE] border-2 border-[#121212] mb-5">
+          <span className="font-mono text-[10px] uppercase font-bold text-[#4b4731] mr-1">Filter:</span>
+          {[
+            { id: 'all', label: `All (${evidenceSignals.length})` },
+            { id: 'available', label: `Available (${availableSignals.length})` },
+            { id: 'unavailable', label: `Unavailable (${unavailableSignals.length})` },
+            { id: 'code_quality', label: 'Code Quality' },
+            { id: 'similarity', label: 'Similarity' },
+            { id: 'documentation', label: 'Documentation' },
+            { id: 'git_history', label: 'Git History' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFilter(tab.id as any)}
+              className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] transition-colors cursor-pointer ${filter === tab.id
+                  ? 'bg-[#121212] text-white'
+                  : 'bg-white text-[#1c1b1b] hover:bg-[#FAF6EE]'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Expandable Source Accordions */}
+        <div className="flex flex-col gap-4">
+          {displayedSources.map((source) => {
+            const sourceSignals = getFilteredSignalsForSource(source.id);
             const SourceIcon = source.icon;
-            const srcAvailable = sourceSignals.filter((s) => s.availabilityStatus === 'available').length;
-            const srcUnavailable = sourceSignals.filter((s) => s.availabilityStatus !== 'available').length;
+            const isExpanded = expandedSources[source.id] || false;
+            const allSourceSignals = getSignalsForSource(evidenceSignals, source.id);
+            const srcAvailable = allSourceSignals.filter((s) => (s.availabilityStatus || (s as any).availability_status) === 'available').length;
+            const srcUnavailable = allSourceSignals.length - srcAvailable;
 
             return (
-              <div key={source.id} className="bg-[#FAF6EE] border-2 border-[#121212]">
-                {/* Source Group Header */}
-                <div className="bg-white border-b-2 border-[#121212] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div key={source.id} className="bg-white border-2 border-[#121212]" style={{ boxShadow: '2px 2px 0px #121212' }}>
+                {/* Accordion Toggle Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleSource(source.id)}
+                  className="w-full p-3.5 bg-white flex items-center justify-between text-left hover:bg-[#FAF6EE] transition-colors cursor-pointer"
+                >
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className={`p-1.5 border border-[#121212] ${source.badgeBg}`}
-                      style={{ boxShadow: '1.5px 1.5px 0px #121212' }}
-                    >
+                    <div className={`p-1.5 border border-[#121212] ${source.badgeBg}`}>
                       <SourceIcon size={16} />
                     </div>
                     <div>
@@ -3655,130 +3946,336 @@ function AIAssistanceTab({
                       <p className="font-sans text-[11px] text-[#4b4731]">{source.description}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5 text-[#1c1b1b]">
-                      {sourceSignals.length === 0
-                        ? 'Source Unavailable'
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+                      {allSourceSignals.length === 0
+                        ? 'Unavailable'
                         : `${srcAvailable} Available / ${srcUnavailable} Unavailable`}
                     </span>
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
-                </div>
+                </button>
 
-                {/* Source Signals */}
-                <div className="p-4 flex flex-col gap-3">
-                  {sourceSignals.length === 0 ? (
-                    <div className="bg-white border border-dashed border-[#121212] p-4 text-center">
-                      <p className="font-sans text-xs text-[#4b4731]">
-                        This evidence source is currently unavailable because the upstream analysis module has not been executed or produced no records.
-                      </p>
-                      <p className="font-mono text-[10px] text-[#7c775f] mt-1">
-                        Run the corresponding module from its tab ({source.name}) to collect this evidence.
-                      </p>
-                    </div>
-                  ) : (
-                    sourceSignals.map((sig, sigIdx) => {
-                      const sigId = sig.signalId || (sig as any).signal_id || `sig-${sigIdx}`;
-                      const sigCategory = sig.signalCategory || (sig as any).category || (sig as any).signal_category || 'General';
-                      const sigObserved = sig.observedValue || (sig as any).observed_value || 'None';
-                      const sigExplanation = sig.explanation || 'No explanation provided.';
-                      const sigAvail = (sig.availabilityStatus || (sig as any).availability_status || 'unavailable').toUpperCase();
-                      const altList = Array.isArray(sig.alternativeExplanations)
-                        ? sig.alternativeExplanations
-                        : Array.isArray((sig as any).alternative_explanations)
-                          ? (sig as any).alternative_explanations
-                          : [];
-                      return (
-                        <div key={sigId} className="bg-white border-2 border-[#121212] p-4 flex flex-col gap-2.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-mono text-[11px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
-                                {sigId}
-                              </span>
-                              <span className="font-mono text-[10px] uppercase font-bold text-[#4b4731]">
-                                {sigCategory}
-                              </span>
-                              {sig.confidence !== undefined && sig.confidence !== null && (
-                                <span className="font-mono text-[10px] font-bold bg-[#FFF9E6] border border-[#121212] px-2 py-0.5 text-[#1c1b1b]">
-                                  Confidence: {Math.round(Number(sig.confidence) * 100)}%
+                {/* Collapsible Accordion Body */}
+                {isExpanded && (
+                  <div className="border-t-2 border-[#121212] p-4 bg-[#FAF6EE] flex flex-col gap-3">
+                    {sourceSignals.length === 0 ? (
+                      <div className="bg-white border border-dashed border-[#121212] p-4 text-center">
+                        <p className="font-sans text-xs text-[#4b4731]">
+                          No signals match the current filter for this module.
+                        </p>
+                      </div>
+                    ) : (
+                      sourceSignals.map((sig, sigIdx) => {
+                        const sigId = sig.signalId || (sig as any).signal_id || `sig-${sigIdx}`;
+                        const sigCategory = sig.signalCategory || (sig as any).category || (sig as any).signal_category || 'General';
+                        const sigObserved = sig.observedValue || (sig as any).observed_value || 'None';
+                        const sigExplanation = sig.explanation || 'No explanation provided.';
+                        const sigAvail = (sig.availabilityStatus || (sig as any).availability_status || 'unavailable').toUpperCase();
+                        const strength = getEvidenceStrengthBadge(sig.confidence);
+                        const isSigExpanded = expandedSignals[sigId] || false;
+                        const altList = Array.isArray(sig.alternativeExplanations)
+                          ? sig.alternativeExplanations
+                          : Array.isArray((sig as any).alternative_explanations)
+                            ? (sig as any).alternative_explanations
+                            : [];
+
+                        return (
+                          <div key={sigId} className="bg-white border-2 border-[#121212] p-3.5 flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-mono text-[11px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+                                  {sigId}
                                 </span>
-                              )}
-                            </div>
-                            <span
-                              className={`font-mono text-[10px] font-bold px-2 py-0.5 border ${
-                                sigAvail === 'AVAILABLE'
-                                  ? 'bg-[#EBF7F5] text-[#006b58] border-[#006b58]'
-                                  : 'bg-[#FFF0F5] text-[#b43b5b] border-[#b43b5b]'
-                              }`}
-                            >
-                              {sigAvail}
-                            </span>
-                          </div>
-
-                          <div className="bg-[#FAF6EE] border border-[#121212] p-2.5 font-mono text-xs font-bold text-[#1c1b1b] break-words">
-                            <span className="text-[10px] text-[#4b4731] font-normal uppercase block mb-0.5">
-                              Observed Value:
-                            </span>
-                            {sigObserved}
-                          </div>
-
-                          <p className="font-sans text-xs text-[#4b4731] leading-relaxed">
-                            {sigExplanation}
-                          </p>
-
-                          {altList.length > 0 && (
-                            <div className="bg-[#FAF6EE] border border-dashed border-[#121212] p-2.5 mt-1">
-                              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#006b58] flex items-center gap-1 mb-1">
-                                <Info size={12} className="shrink-0" />
-                                Plausible Alternative Explanations (Benign / Academic Context)
+                                <span className="font-mono text-[10px] uppercase font-bold text-[#4b4731]">
+                                  {sigCategory}
+                                </span>
+                                <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border ${strength.bg}`}>
+                                  {strength.label}
+                                </span>
+                              </div>
+                              <span
+                                className={`font-mono text-[9px] font-bold px-2 py-0.5 border ${sigAvail === 'AVAILABLE'
+                                    ? 'bg-[#EBF7F5] text-[#006b58] border-[#006b58]'
+                                    : 'bg-[#FFF0F5] text-[#b43b5b] border-[#b43b5b]'
+                                  }`}
+                              >
+                                {sigAvail}
                               </span>
-                              <ul className="flex flex-col gap-1 pl-4 list-disc text-xs text-[#4b4731]">
-                                {altList.map((alt: any, idx: number) => (
-                                  <li key={idx}>{alt}</li>
-                                ))}
-                              </ul>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+
+                            <div className="bg-[#FAF6EE] border border-[#121212] p-2 font-mono text-xs text-[#1c1b1b] break-words">
+                              <strong className="text-[10px] text-[#4b4731] font-normal uppercase block mb-0.5">
+                                Observed Value:
+                              </strong>
+                              {String(sigObserved)}
+                            </div>
+
+                            <p className="font-sans text-xs text-[#4b4731] leading-relaxed">
+                              {sigExplanation}
+                            </p>
+
+                            {altList.length > 0 && (
+                              <div className="mt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSignal(sigId)}
+                                  className="font-mono text-[10px] font-bold text-[#006b58] flex items-center gap-1 hover:underline cursor-pointer"
+                                >
+                                  <Info size={12} />
+                                  {isSigExpanded ? 'Hide Alternative Explanations' : `View Alternative Explanations (${altList.length})`}
+                                </button>
+                                {isSigExpanded && (
+                                  <div className="bg-[#FAF6EE] border border-dashed border-[#121212] p-2.5 mt-1.5">
+                                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#006b58] block mb-1">
+                                      Plausible Alternative Explanations (Benign / Academic Context):
+                                    </span>
+                                    <ul className="flex flex-col gap-1 pl-4 list-disc text-xs text-[#4b4731]">
+                                      {altList.map((alt: any, idx: number) => (
+                                        <li key={idx}>{alt}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
 
-          {otherSignals.length > 0 && (
-            <div className="bg-[#FAF6EE] border-2 border-[#121212]">
-              <div className="bg-white border-b-2 border-[#121212] p-4 flex items-center justify-between">
-                <h4 className="font-display font-bold text-sm text-[#1c1b1b]">5. Additional Evidence Signals</h4>
-                <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
-                  {otherSignals.length} Signal(s)
-                </span>
-              </div>
-              <div className="p-4 flex flex-col gap-3">
-                {otherSignals.map((sig, sigIdx) => {
-                  const sigId = sig.signalId || (sig as any).signal_id || `other-${sigIdx}`;
-                  const sigObserved = sig.observedValue || (sig as any).observed_value || 'None';
-                  const sigExplanation = sig.explanation || 'No explanation provided.';
-                  const sigAvail = sig.availabilityStatus || (sig as any).availability_status || 'available';
-                  return (
-                    <div key={sigId} className="bg-white border-2 border-[#121212] p-4 flex flex-col gap-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-mono text-[11px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
-                          {sigId}
-                        </span>
-                        <span className="font-mono text-[10px] font-bold text-[#006b58]">{sigAvail}</span>
+          {otherSignals.length > 0 && (filter === 'all' || filter === 'available') && (
+            <div className="bg-white border-2 border-[#121212]" style={{ boxShadow: '2px 2px 0px #121212' }}>
+              <button
+                type="button"
+                onClick={() => toggleSource('other')}
+                className="w-full p-3.5 bg-white flex items-center justify-between text-left hover:bg-[#FAF6EE] transition-colors cursor-pointer"
+              >
+                <div>
+                  <h4 className="font-display font-bold text-sm text-[#1c1b1b]">5. Additional Evidence Signals</h4>
+                  <p className="font-sans text-[11px] text-[#4b4731]">Uncategorized or auxiliary signals</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+                    {otherSignals.length} Signal(s)
+                  </span>
+                  {expandedSources.other ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+              </button>
+              {expandedSources.other && (
+                <div className="border-t-2 border-[#121212] p-4 bg-[#FAF6EE] flex flex-col gap-2">
+                  {otherSignals.map((sig, sigIdx) => {
+                    const sigId = sig.signalId || (sig as any).signal_id || `other-${sigIdx}`;
+                    const sigObserved = sig.observedValue || (sig as any).observed_value || 'None';
+                    const sigExplanation = sig.explanation || 'No explanation provided.';
+                    const sigAvail = sig.availabilityStatus || (sig as any).availability_status || 'available';
+                    return (
+                      <div key={sigId} className="bg-white border-2 border-[#121212] p-3 flex flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+                            {sigId}
+                          </span>
+                          <span className="font-mono text-[10px] font-bold text-[#006b58]">{sigAvail}</span>
+                        </div>
+                        <p className="font-mono text-xs font-bold text-[#1c1b1b]">{sigObserved}</p>
+                        <p className="font-sans text-xs text-[#4b4731]">{sigExplanation}</p>
                       </div>
-                      <p className="font-mono text-xs font-bold text-[#1c1b1b]">{sigObserved}</p>
-                      <p className="font-sans text-xs text-[#4b4731]">{sigExplanation}</p>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Actionable Guidance & Assistance Findings (10 Key Areas) ── */}
+      {findings.length > 0 && (
+        <div className="bg-white border-[2.5px] border-[#121212] p-6 flex flex-col gap-5" style={{ boxShadow: '4px 4px 0px #121212' }}>
+          <div className="flex flex-col md:flex-row md:items-start justify-between pb-3 border-b-2 border-[#121212] gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="font-mono text-[10px] font-bold bg-[#FFE600] text-[#121212] px-2 py-0.5 border border-[#121212] uppercase">
+                  {ai?.llmProvider === 'gemini' ? 'Google Gemini 2.5 Flash' : 'AI Guidance'}
+                </span>
+                <span className="font-mono text-[10px] font-bold bg-[#EBF7F5] text-[#006b58] px-2 py-0.5 border border-[#006b58]">
+                  {findings.length} Assistance Areas Analyzed
+                </span>
+              </div>
+              <h3 className="font-display font-bold text-xl flex items-center gap-2 text-[#1c1b1b]">
+                <Sparkles size={20} className="text-[#1c1b1b]" />
+                Actionable Findings &amp; Viva Recommendations
+              </h3>
+              <p className="font-sans text-xs text-[#4b4731] mt-0.5">
+                Evidence-grounded project guidance across architecture, code maintainability, test coverage, and oral defense readiness.
+              </p>
+            </div>
+            {/* Priority Filter */}
+            <div className="flex items-center gap-1 flex-wrap shrink-0">
+              <span className="font-mono text-[10px] text-[#4b4731] mr-1">Priority:</span>
+              {['all', 'critical', 'high', 'medium', 'low', 'informational'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setFindingPriorityFilter(p)}
+                  className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] cursor-pointer transition-colors ${
+                    findingPriorityFilter === p
+                      ? 'bg-[#121212] text-white'
+                      : 'bg-[#FAF6EE] text-[#1c1b1b] hover:bg-[#FFE600]'
+                  }`}
+                >
+                  {p.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Filter Buttons */}
+          {findingCategories.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap pb-1">
+              <button
+                type="button"
+                onClick={() => setFindingCategoryFilter('all')}
+                className={`font-mono text-[10px] font-bold px-2.5 py-1 border border-[#121212] cursor-pointer ${
+                  findingCategoryFilter === 'all'
+                    ? 'bg-[#121212] text-white'
+                    : 'bg-[#FAF6EE] text-[#1c1b1b] hover:bg-[#FFE600]'
+                }`}
+              >
+                All Areas ({findings.length})
+              </button>
+              {findingCategories.map((cat: any) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setFindingCategoryFilter(cat)}
+                  className={`font-mono text-[10px] font-bold px-2 py-1 border border-[#121212] cursor-pointer ${
+                    findingCategoryFilter === cat
+                      ? 'bg-[#121212] text-white'
+                      : 'bg-white text-[#4b4731] hover:bg-[#FAF6EE]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Findings Cards */}
+          <div className="flex flex-col gap-4">
+            {filteredFindings.map((finding: any, idx: number) => {
+              const priorityStyle = getPriorityStyle(finding.priority);
+              const isExpanded = expandedFindings[idx] ?? true;
+              const whyMatters = finding.why_it_matters || finding.whyItMatters;
+              const supporting = finding.supporting_evidence || finding.supportingEvidence;
+              const action = finding.recommended_action || finding.recommendedAction;
+              const benefit = finding.expected_benefit || finding.expectedBenefit;
+              const sourceRef = finding.source_reference || finding.sourceReference;
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-[#FAF6EE] border-2 border-[#121212] p-4 flex flex-col gap-3"
+                  style={{ boxShadow: '2px 2px 0px #121212' }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#121212] pb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border ${priorityStyle.bg}`}>
+                        {priorityStyle.label}
+                      </span>
+                      <span className="font-mono text-[10px] font-bold bg-white text-[#1c1b1b] px-2 py-0.5 border border-[#121212]">
+                        {finding.category}
+                      </span>
+                      {sourceRef && (
+                        <span className="font-mono text-[9px] text-[#4b4731]">
+                          Ref: {sourceRef}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFinding(idx)}
+                      className="font-mono text-[10px] font-bold text-[#1c1b1b] hover:text-[#00876c] underline self-end sm:self-auto cursor-pointer"
+                    >
+                      {isExpanded ? 'Collapse' : 'Expand Details'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4 className="font-display font-bold text-base text-[#1c1b1b]">
+                      {finding.title}
+                    </h4>
+                    <p className="font-sans text-xs text-[#4b4731] mt-1 leading-relaxed">
+                      {finding.description}
+                    </p>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      {/* Why it matters */}
+                      {whyMatters && (
+                        <div className="p-2.5 bg-white border border-[#121212]">
+                          <span className="font-mono text-[9px] font-bold uppercase text-[#b43b5b] flex items-center gap-1 mb-1">
+                            <AlertCircle size={12} className="text-[#b43b5b]" />
+                            Why It Matters
+                          </span>
+                          <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed">
+                            {whyMatters}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Supporting evidence */}
+                      {supporting && (
+                        <div className="p-2.5 bg-white border border-[#121212]">
+                          <span className="font-mono text-[9px] font-bold uppercase text-[#4b4731] flex items-center gap-1 mb-1">
+                            <FileText size={12} className="text-[#4b4731]" />
+                            Supporting Evidence
+                          </span>
+                          <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed">
+                            {supporting}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Recommended action */}
+                      {action && (
+                        <div className="p-2.5 bg-[#EBF7F5] border border-[#006b58]">
+                          <span className="font-mono text-[9px] font-bold uppercase text-[#006b58] flex items-center gap-1 mb-1">
+                            <CheckCircle size={12} className="text-[#006b58]" />
+                            Recommended Action
+                          </span>
+                          <p className="font-sans text-xs text-[#1c1b1b] font-medium leading-relaxed">
+                            {action}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Expected benefit */}
+                      {benefit && (
+                        <div className="p-2.5 bg-[#FFF9E6] border border-[#121212]">
+                          <span className="font-mono text-[9px] font-bold uppercase text-[#7a5c00] flex items-center gap-1 mb-1">
+                            <Sparkles size={12} className="text-[#7a5c00]" />
+                            Expected Benefit
+                          </span>
+                          <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed">
+                            {benefit}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── LLM Advisory Interpretation Section ── */}
       {hasInterpretation ? (
@@ -3791,8 +4288,8 @@ function AIAssistanceTab({
               </h3>
               <p className="font-sans text-xs text-[#4b4731] mt-1">
                 Contextual synthesis generated by{' '}
-                <span className="font-mono font-bold text-[#1c1b1b]">{ai?.llmModel || 'google/gemma-4-26b-a4b-it:free'}</span>
-                {' '}via OpenRouter based on the deterministic evidence above.
+                <span className="font-mono font-bold text-[#1c1b1b]">{ai?.llmModel || 'gemini-2.5-flash'}</span>
+                {' '}via {ai?.llmProvider === 'gemini' ? 'Google Gemini' : 'OpenRouter'} based on the deterministic evidence above.
               </p>
             </div>
             <span className="font-mono text-[10px] font-bold bg-[#00E5BE] text-[#121212] px-3 py-1 border border-[#121212]">
@@ -3964,8 +4461,8 @@ function AIAssistanceTab({
               LLM Advisory Interpretation
             </h3>
             <span className={`font-mono text-[10px] font-bold px-2.5 py-1 border border-[#121212] ${ai?.llmInterpretationStatus === 'error'
-                ? 'bg-[#FF5C8D] text-white'
-                : 'bg-[#FAF6EE] text-[#4b4731]'
+              ? 'bg-[#FF5C8D] text-white'
+              : 'bg-[#FAF6EE] text-[#4b4731]'
               }`}>
               {formatLLMStatus(ai?.llmInterpretationStatus).label}
             </span>
@@ -4022,46 +4519,618 @@ function AIAssistanceTab({
   );
 }
 
-function VivaTab({ analysis }: { analysis: ProjectAnalysis | null }) {
-  const vivaQs = analysis?.vivaQuestions;
-  if (!analysis) return <UnavailablePanel featureName="Viva Questions" />;
-  if (!vivaQs || vivaQs.length === 0) return <EmptyState title="No viva questions available" description="Viva questions have not been generated yet. Request generation from the Evaluation Report tab." />;
+const VIVA_MODES_DEF: Array<{
+  id: VivaMode;
+  label: string;
+  icon: typeof Zap;
+  desc: string;
+  badge: string;
+}> = [
+  {
+    id: 'quick_prep',
+    label: 'Quick Preparation',
+    icon: Zap,
+    desc: 'High-probability core questions on fundamentals, architecture & tech stack.',
+    badge: 'Fast Review',
+  },
+  {
+    id: 'complete_viva',
+    label: 'Complete Viva',
+    icon: GraduationCap,
+    desc: 'Comprehensive 9-category question set with balanced difficulty.',
+    badge: 'Full Defense',
+  },
+  {
+    id: 'technical_deep_dive',
+    label: 'Technical Deep Dive',
+    icon: Code2,
+    desc: 'In-depth focus on code files, algorithms, database schema & APIs.',
+    badge: 'Code Focus',
+  },
+  {
+    id: 'examiner_challenge',
+    label: 'Examiner Challenge',
+    icon: Flame,
+    desc: 'Tough questions on scalability, design bottlenecks & missing tests.',
+    badge: 'Challenging',
+  },
+];
 
-  const grouped: Record<string, typeof vivaQs> = {};
-  for (const q of vivaQs) {
-    if (!grouped[q.category]) grouped[q.category] = [];
-    grouped[q.category].push(q);
+const VIVA_CATEGORIES_LIST = [
+  'Project Fundamentals',
+  'Technical Architecture',
+  'Technology Stack',
+  'Implementation and Coding',
+  'Innovation and Uniqueness',
+  'Testing and Validation',
+  'Critical Thinking and Problem Solving',
+  'Project-Specific Technical Deep Dive',
+  'Future Scope and Improvements',
+];
+
+function VivaTab({
+  project,
+  analysis: _analysis,
+}: {
+  project: Project;
+  analysis: ProjectAnalysis | null;
+}) {
+  const [questionSet, setQuestionSet] = useState<VivaQuestionSet | null>(null);
+  const [progress, setProgress] = useState<VivaProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Generation controls
+  const [selectedMode, setSelectedMode] = useState<VivaMode>('complete_viva');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [selectedCount, setSelectedCount] = useState<number>(10);
+
+  // Filters & answer reveals
+  const [practiceFilter, setPracticeFilter] = useState<'all' | 'practiced' | 'unpracticed'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [expandedAnswers, setExpandedAnswers] = useState<Record<string, boolean>>({});
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [qs, prog] = await Promise.all([
+        fetchVivaQuestions(project.id),
+        fetchVivaProgress(project.id).catch(() => null),
+      ]);
+      setQuestionSet(qs);
+      setProgress(prog);
+    } catch (err: any) {
+      console.warn('Could not load viva questions:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleGenerate = async () => {
+    try {
+      setGenerating(true);
+      setError(null);
+      const newSet = await generateVivaQuestions(project.id, {
+        mode: selectedMode,
+        difficulty: selectedDifficulty,
+        questionCount: selectedCount,
+        forceRegenerate: true,
+      });
+      setQuestionSet(newSet);
+      const prog = await fetchVivaProgress(project.id).catch(() => null);
+      setProgress(prog);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to generate viva questions.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleTogglePractice = async (questionId: string, currentStatus: boolean) => {
+    try {
+      const updated = await updateVivaPracticeStatus(project.id, questionId, !currentStatus);
+      if (questionSet) {
+        setQuestionSet({
+          ...questionSet,
+          questions: questionSet.questions.map((q) => (q.id === questionId ? updated : q)),
+          practicedCount: questionSet.questions.filter((q) =>
+            q.id === questionId ? !currentStatus : q.isPracticed,
+          ).length,
+        });
+      }
+      const prog = await fetchVivaProgress(project.id).catch(() => null);
+      setProgress(prog);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update practice status.');
+    }
+  };
+
+  const handleRegenerateQuestion = async (questionId: string) => {
+    try {
+      setRegeneratingId(questionId);
+      setError(null);
+      const updated = await regenerateVivaQuestion(project.id, questionId);
+      if (questionSet) {
+        setQuestionSet({
+          ...questionSet,
+          questions: questionSet.questions.map((q) => (q.id === questionId ? updated : q)),
+        });
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to regenerate question.');
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
+  const toggleAnswer = (questionId: string) => {
+    setExpandedAnswers((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
+  };
+
+  const toggleAllAnswers = () => {
+    if (!questionSet) return;
+    const allExpanded = questionSet.questions.every((q) => expandedAnswers[q.id]);
+    const nextState: Record<string, boolean> = {};
+    questionSet.questions.forEach((q) => {
+      nextState[q.id] = !allExpanded;
+    });
+    setExpandedAnswers(nextState);
+  };
+
+  const getDifficultyBadge = (diff: string) => {
+    switch ((diff || '').toLowerCase()) {
+      case 'beginner':
+        return { label: 'Beginner', bg: 'bg-[#EBF7F5] text-[#006b58] border-[#006b58]' };
+      case 'advanced':
+        return { label: 'Advanced', bg: 'bg-[#FFF0F5] text-[#b43b5b] border-[#b43b5b]' };
+      case 'intermediate':
+      default:
+        return { label: 'Intermediate', bg: 'bg-[#FFF9E6] text-[#7a5c00] border-[#7a5c00]' };
+    }
+  };
+
+  const questions: FullVivaQuestion[] = questionSet?.questions || [];
+  const filteredQuestions = questions.filter((q) => {
+    if (practiceFilter === 'practiced' && !q.isPracticed) return false;
+    if (practiceFilter === 'unpracticed' && q.isPracticed) return false;
+    if (categoryFilter !== 'all' && q.category !== categoryFilter) return false;
+    return true;
+  });
+
+  const practicedCount = questions.filter((q) => q.isPracticed).length;
+  const totalCount = questions.length;
+  const progressPct = totalCount > 0 ? Math.round((practicedCount / totalCount) * 100) : 0;
+  const allAnswersRevealed = questions.length > 0 && questions.every((q) => expandedAnswers[q.id]);
+
+  if (loading && !questionSet) {
+    return (
+      <div className="bg-white border-[2.5px] border-[#121212] p-12 text-center" style={{ boxShadow: '4px 4px 0px #121212' }}>
+        <LoadingSpinner message="Loading Viva Preparation questions..." />
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {Object.entries(grouped).map(([category, questions]) => (
-        <div key={category} className="bg-white border-[2.5px] border-[#121212]" style={{ boxShadow: '4px 4px 0px #121212' }}>
-          <div className="bg-[#ffe600] border-b-2 border-[#121212] px-4 py-2">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-widest">{category}</span>
+      {/* ── Top Generator Controls Card ── */}
+      <div className="bg-white border-[2.5px] border-[#121212] p-6" style={{ boxShadow: '4px 4px 0px #121212' }}>
+        <div className="flex flex-col md:flex-row md:items-start justify-between pb-4 border-b-2 border-[#121212] mb-5 gap-4">
+          <div>
+            <h2 className="font-display font-bold text-2xl text-[#1c1b1b] flex items-center gap-2">
+              <GraduationCap size={26} className="text-[#1c1b1b]" />
+              Intelligent Viva Preparation Suite
+            </h2>
+            <p className="font-sans text-sm text-[#4b4731] mt-1 leading-relaxed">
+              Examiner-grade viva questions and suggested answers generated from actual project documentation, source code, architecture, and complexity metrics using Google Gemini AI.
+            </p>
           </div>
-          <div className="p-4 flex flex-col gap-3">
-            {questions.map((q, i) => (
-              <div key={q.id} className="p-4 bg-[#FAF6EE] border-[1.5px] border-[#121212]">
-                <div className="flex items-start gap-3">
-                  <span
-                    className="font-mono text-[11px] font-bold bg-white border border-[#121212] px-2 py-0.5 shrink-0"
-                    style={{ boxShadow: '1px 1px 0px #121212' }}
-                  >
-                    Q{i + 1}
-                  </span>
+          {questionSet && (
+            <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+              <span className={`font-mono text-[10px] font-bold px-2.5 py-1 border border-[#121212] flex items-center gap-1 ${
+                questionSet.generationSource === 'gemini'
+                  ? 'bg-[#00E5BE] text-[#121212]'
+                  : 'bg-[#FAF6EE] text-[#4b4731]'
+              }`}>
+                {questionSet.generationSource === 'gemini' ? (
+                  <>
+                    <Sparkles size={12} />
+                    Gemini 2.5 Flash AI
+                  </>
+                ) : (
+                  <>
+                    <Shield size={12} />
+                    Deterministic Fallback
+                  </>
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-5">
+            <ErrorBanner message={error} />
+          </div>
+        )}
+
+        {/* Mode Selector */}
+        <div className="mb-5">
+          <label className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#4b4731] block mb-2">
+            1. Select Viva Generation Mode:
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {VIVA_MODES_DEF.map((m) => {
+              const Icon = m.icon;
+              const isSelected = selectedMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedMode(m.id)}
+                  className={`p-3 border-2 border-[#121212] text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-[#ffe600] font-bold'
+                      : 'bg-[#FAF6EE] hover:bg-white'
+                  }`}
+                  style={{ boxShadow: isSelected ? '3px 3px 0px #121212' : '1px 1px 0px #121212' }}
+                >
                   <div>
-                    <p className="font-sans text-sm font-medium text-[#1c1b1b]">{q.question}</p>
-                    {q.context && (
-                      <p className="font-mono text-[11px] text-[#4b4731] mt-1">{q.context}</p>
-                    )}
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5 font-display text-sm font-bold text-[#1c1b1b]">
+                        <Icon size={16} />
+                        {m.label}
+                      </div>
+                      <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 border border-[#121212] bg-white text-[#1c1b1b]">
+                        {m.badge}
+                      </span>
+                    </div>
+                    <p className="font-sans text-[11px] text-[#4b4731] leading-tight">
+                      {m.desc}
+                    </p>
                   </div>
-                </div>
-              </div>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
-      ))}
+
+        {/* Difficulty & Count Options */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t-2 border-[#121212]">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Target Difficulty */}
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold text-[#4b4731] uppercase">Difficulty:</span>
+              <div className="flex items-center gap-1">
+                {['all', 'beginner', 'intermediate', 'advanced'].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setSelectedDifficulty(d)}
+                    className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] uppercase transition-colors cursor-pointer ${
+                      selectedDifficulty === d
+                        ? 'bg-[#121212] text-white'
+                        : 'bg-[#FAF6EE] text-[#1c1b1b] hover:bg-white'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Question Count */}
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold text-[#4b4731] uppercase">Questions:</span>
+              <div className="flex items-center gap-1">
+                {[5, 10, 15, 20].map((cnt) => (
+                  <button
+                    key={cnt}
+                    type="button"
+                    onClick={() => setSelectedCount(cnt)}
+                    className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] transition-colors cursor-pointer ${
+                      selectedCount === cnt
+                        ? 'bg-[#121212] text-white'
+                        : 'bg-[#FAF6EE] text-[#1c1b1b] hover:bg-white'
+                    }`}
+                  >
+                    {cnt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="btn-primary flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={generating ? 'animate-spin' : ''} />
+            {generating
+              ? 'Generating Viva Questions with Gemini...'
+              : questionSet
+                ? 'Regenerate All Questions'
+                : 'Generate Viva Questions'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Practice Progress & Filter Ribbon ── */}
+      {questionSet && (
+        <div className="bg-white border-[2.5px] border-[#121212] p-5" style={{ boxShadow: '4px 4px 0px #121212' }}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b-2 border-[#121212] mb-4">
+            <div>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#4b4731] block mb-0.5">
+                Practice &amp; Preparation Progress
+              </span>
+              <div className="font-display font-bold text-lg text-[#1c1b1b] flex items-center gap-2">
+                <span>{practicedCount} of {totalCount} Questions Practiced</span>
+                <span className="font-mono text-sm text-[#006b58] font-bold">({progressPct}%)</span>
+              </div>
+              {progress?.byDifficulty && (
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="font-mono text-[9px] uppercase font-bold text-[#4b4731]">Mastery:</span>
+                  {Object.entries(progress.byDifficulty).map(([d, stat]) => (
+                    <span key={d} className="font-mono text-[9px] bg-[#FAF6EE] border border-[#121212] px-1.5 py-0.5 text-[#1c1b1b]">
+                      {d}: {stat.practiced}/{stat.total}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={toggleAllAnswers}
+              className="font-mono text-[11px] font-bold px-3 py-1 bg-[#FAF6EE] border border-[#121212] hover:bg-[#eae4d5] transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+            >
+              {allAnswersRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+              {allAnswersRevealed ? 'Hide All Answers' : 'Reveal All Answers'}
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-[#FAF6EE] border border-[#121212] h-3.5 mb-4 p-0.5">
+            <div
+              className="bg-[#00E5BE] h-full transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+
+          {/* Filters Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            {/* Practiced Filter */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono text-[10px] uppercase font-bold text-[#4b4731] mr-1">Status:</span>
+              {[
+                { id: 'all', label: `All (${totalCount})` },
+                { id: 'unpracticed', label: `To Practice (${totalCount - practicedCount})` },
+                { id: 'practiced', label: `Practiced (${practicedCount})` },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setPracticeFilter(f.id as any)}
+                  className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] transition-colors cursor-pointer ${
+                    practiceFilter === f.id
+                      ? 'bg-[#121212] text-white'
+                      : 'bg-[#FAF6EE] text-[#1c1b1b] hover:bg-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Category Select Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-[#4b4731]">Category:</span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="font-mono text-[10px] font-bold bg-[#FAF6EE] border border-[#121212] px-2 py-1 outline-none cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {VIVA_CATEGORIES_LIST.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Question Cards List ── */}
+      {questionSet && filteredQuestions.length > 0 && (
+        <div className="flex flex-col gap-4">
+          {filteredQuestions.map((q, idx) => {
+            const diffStyle = getDifficultyBadge(q.difficulty);
+            const isAnswerVisible = expandedAnswers[q.id] || false;
+            const isRegenerating = regeneratingId === q.id;
+
+            return (
+              <div
+                key={q.id}
+                className={`bg-white border-2 border-[#121212] p-5 flex flex-col gap-3 transition-all ${
+                  q.isPracticed ? 'border-l-8 border-l-[#00E5BE]' : ''
+                }`}
+                style={{ boxShadow: '3px 3px 0px #121212' }}
+              >
+                {/* Card Top Ribbon */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#121212] pb-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[11px] font-bold bg-[#121212] text-white px-2 py-0.5">
+                      Q{idx + 1}
+                    </span>
+                    <span className="font-mono text-[10px] font-bold uppercase bg-[#FAF6EE] border border-[#121212] px-2 py-0.5 text-[#1c1b1b]">
+                      {q.category}
+                    </span>
+                    <span className={`font-mono text-[9px] font-bold uppercase px-2 py-0.5 border ${diffStyle.bg}`}>
+                      {diffStyle.label}
+                    </span>
+                    {q.source === 'gemini' ? (
+                      <span className="font-mono text-[9px] font-bold bg-[#00E5BE] text-[#121212] border border-[#121212] px-1.5 py-0.5 flex items-center gap-1">
+                        <Sparkles size={10} />
+                        Gemini AI
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[9px] font-bold bg-[#FAF6EE] text-[#4b4731] border border-[#121212] px-1.5 py-0.5">
+                        Deterministic Fallback
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Practiced check indicator */}
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePractice(q.id, q.isPracticed)}
+                    className={`font-mono text-[10px] font-bold px-2 py-0.5 border border-[#121212] flex items-center gap-1 cursor-pointer transition-colors ${
+                      q.isPracticed
+                        ? 'bg-[#00E5BE] text-[#121212]'
+                        : 'bg-[#FAF6EE] text-[#4b4731] hover:bg-white'
+                    }`}
+                  >
+                    {q.isPracticed ? <CheckSquare size={12} /> : <Square size={12} />}
+                    {q.isPracticed ? 'Practiced' : 'Mark Practiced'}
+                  </button>
+                </div>
+
+                {/* Question Text */}
+                <h3 className="font-display font-bold text-base text-[#1c1b1b] leading-snug">
+                  {q.question}
+                </h3>
+
+                {/* Examiner Rationale Box */}
+                <div className="bg-[#FFF9E6] border-l-4 border-[#ffe600] p-2.5 text-xs text-[#4b4731]">
+                  <strong className="font-mono text-[10px] font-bold text-[#1c1b1b] uppercase block mb-0.5">
+                    Why an Examiner Asks This:
+                  </strong>
+                  {q.examinerRationale}
+                </div>
+
+                {/* Evidence Reference */}
+                {q.evidenceReference && (
+                  <div className="font-mono text-[10px] text-[#4b4731] flex items-center gap-1">
+                    <span className="font-bold text-[#1c1b1b] uppercase">Evidence Basis:</span>
+                    <span className="bg-[#FAF6EE] border border-[#121212] px-1.5 py-0.5">
+                      {q.evidenceReference}
+                    </span>
+                  </div>
+                )}
+
+                {/* Suggested Answer Accordion */}
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleAnswer(q.id)}
+                    className="font-mono text-[11px] font-bold text-[#006b58] hover:underline flex items-center gap-1.5 cursor-pointer py-1"
+                  >
+                    {isAnswerVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {isAnswerVisible ? 'Hide Suggested Answer' : 'Show Suggested Answer & Key Points'}
+                  </button>
+
+                  {isAnswerVisible && (
+                    <div className="bg-[#FAF6EE] border-2 border-[#121212] p-4 mt-2 flex flex-col gap-3">
+                      {/* Expected Key Points */}
+                      {q.keyPoints && q.keyPoints.length > 0 && (
+                        <div>
+                          <strong className="font-mono text-[10px] uppercase font-bold text-[#006b58] block mb-1.5">
+                            Key Points Expected in a Strong Viva Answer:
+                          </strong>
+                          <ul className="list-disc list-inside space-y-1 text-xs text-[#1c1b1b]">
+                            {q.keyPoints.map((pt, i) => (
+                              <li key={i}>{pt}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Full Suggested Answer */}
+                      <div>
+                        <strong className="font-mono text-[10px] uppercase font-bold text-[#1c1b1b] block mb-1">
+                          Comprehensive Suggested Answer:
+                        </strong>
+                        <p className="font-sans text-xs text-[#1c1b1b] leading-relaxed whitespace-pre-line bg-white border border-[#121212] p-3">
+                          {q.suggestedAnswer}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#121212]/30 text-xs">
+                  <span className="font-mono text-[9px] text-[#7c775f]">
+                    ID: {q.id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRegenerateQuestion(q.id)}
+                    disabled={isRegenerating}
+                    className="font-mono text-[10px] font-bold text-[#4b4731] hover:text-[#1c1b1b] flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={11} className={isRegenerating ? 'animate-spin' : ''} />
+                    {isRegenerating ? 'Regenerating...' : 'Regenerate This Question'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Empty State ── */}
+      {!loading && (!questionSet || questions.length === 0) && (
+        <div className="bg-white border-[2.5px] border-[#121212] p-10 text-center" style={{ boxShadow: '4px 4px 0px #121212' }}>
+          <div className="w-16 h-16 bg-[#ffe600] border-2 border-[#121212] flex items-center justify-center mx-auto mb-4" style={{ boxShadow: '3px 3px 0px #121212' }}>
+            <GraduationCap size={32} className="text-[#121212]" />
+          </div>
+          <h3 className="font-display font-bold text-xl text-[#1c1b1b] mb-2">
+            No Viva Questions Generated Yet
+          </h3>
+          <p className="font-sans text-sm text-[#4b4731] max-w-xl mx-auto mb-6 leading-relaxed">
+            ProjectLens can analyze this project's code files, complexity hotspots, documentation claims, and technology stack to generate personalized examiner viva defense questions with complete suggested answers using Google Gemini AI.
+          </p>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="btn-primary inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 text-sm py-2.5 px-6"
+          >
+            <Sparkles size={16} />
+            {generating ? 'Generating Viva Questions...' : 'Generate Viva Questions Now'}
+          </button>
+        </div>
+      )}
+
+      {/* ── No matches for current filter ── */}
+      {questionSet && questions.length > 0 && filteredQuestions.length === 0 && (
+        <div className="bg-white border-[2.5px] border-[#121212] p-8 text-center" style={{ boxShadow: '4px 4px 0px #121212' }}>
+          <p className="font-sans text-sm text-[#4b4731] mb-2">
+            No questions match the current status or category filter.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setPracticeFilter('all');
+              setCategoryFilter('all');
+            }}
+            className="font-mono text-xs font-bold text-[#006b58] underline cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -4071,6 +5140,7 @@ function ReportTab({
   analysis,
   onDownload,
   onRequestReport,
+  onExportJson,
   reportLoading,
   reportError,
 }: {
@@ -4078,97 +5148,463 @@ function ReportTab({
   analysis: ProjectAnalysis | null;
   onDownload: () => void;
   onRequestReport: () => void;
+  onExportJson?: () => void;
   reportLoading: boolean;
   reportError: string | null;
 }) {
   const report = analysis?.evaluationReport;
+  const evaluation = report?.evaluation;
+  const categories = evaluation?.category_scores || [];
+  const strengths = evaluation?.strengths || [];
+  const weaknesses = evaluation?.weaknesses || [];
+  const risks = evaluation?.risks || [];
+  const recommendations = evaluation?.recommendations || [];
+
+  const statusLabel =
+    evaluation?.evaluation_status === 'complete'
+      ? 'Complete Evaluation'
+      : evaluation?.evaluation_status === 'provisional' || evaluation?.evaluation_status === 'partial'
+      ? 'Provisional Evaluation'
+      : evaluation?.evaluation_status === 'insufficient_evidence'
+      ? 'Insufficient Evidence'
+      : 'Evaluation Ready';
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="bg-white border-[2.5px] border-[#121212] overflow-hidden" style={{ boxShadow: '4px 4px 0px #121212' }}>
-        <div className="bg-[#ffe600] border-b-2 border-[#121212] px-4 py-2 flex items-center justify-between">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-widest">Evaluation Report</span>
-          {report?.grade && (
-            <span className="font-mono text-[11px] font-bold bg-white px-2 py-0.5 border border-[#121212]" style={{ boxShadow: '1px 1px 0px #121212' }}>
-              Grade {report.grade}
+      {/* ── 1. Top Executive Evaluation Scorecard ── */}
+      <div
+        className="bg-white border-[2.5px] border-[#121212] overflow-hidden"
+        style={{ boxShadow: '4px 4px 0px #121212' }}
+      >
+        <div className="bg-[#ffe600] border-b-2 border-[#121212] px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Award size={20} className="text-[#1c1b1b]" />
+            <span className="font-display font-bold uppercase tracking-wide text-sm">
+              Overall Project Evaluation &amp; Formal Report
             </span>
-          )}
+          </div>
+          <div className="flex items-center gap-2">
+            {report?.grade && (
+              <span
+                className="font-mono text-xs font-bold bg-white px-2.5 py-1 border-2 border-[#121212]"
+                style={{ boxShadow: '1.5px 1.5px 0px #121212' }}
+              >
+                GRADE {report.grade}
+              </span>
+            )}
+            {evaluation?.coverage_pct !== undefined && (
+              <span
+                className="font-mono text-xs font-bold bg-[#EBF7F5] text-[#006b58] px-2.5 py-1 border-2 border-[#121212]"
+                style={{ boxShadow: '1.5px 1.5px 0px #121212' }}
+              >
+                {Math.round(evaluation.coverage_pct)}% COVERAGE
+              </span>
+            )}
+          </div>
         </div>
-        <div className="p-6">
-          {report ? (
-            <>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="font-display font-bold text-6xl text-[#1c1b1b] leading-none">{report.overallScore}</span>
-                <span className="font-display font-bold text-xl text-[#4b4731]">/100</span>
+
+        <div className="p-6 md:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Score & Grade Display */}
+            <div className="lg:col-span-5 flex flex-col justify-center">
+              <span className="font-mono text-xs uppercase tracking-wider text-[#4b4731] font-bold mb-1">
+                Consolidated Faculty Evaluation
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display font-black text-6xl md:text-7xl text-[#1c1b1b] tracking-tight">
+                  {report?.overallScore !== undefined ? report.overallScore : project.score ?? '—'}
+                </span>
+                <span className="font-display font-bold text-2xl text-[#4b4731]">/100</span>
               </div>
-
-              {report.scoreBreakdown.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {report.scoreBreakdown.map((s) => (
-                    <div key={s.dimension} className="p-2 bg-[#FAF6EE] border-[1.5px] border-[#121212] flex justify-between font-mono text-[11px]">
-                      <span>{s.dimension}</span>
-                      <span className="font-bold">{s.score}/{s.maxScore}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {report.facultyNotes && (
-                <div className="mt-4 p-3 bg-[#F2ECE1] border border-[#121212]">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Edit3 size={14} />
-                    <span className="font-mono text-[10px] font-bold uppercase">Faculty Notes</span>
-                  </div>
-                  <p className="font-sans text-sm text-[#4b4731]">{report.facultyNotes}</p>
-                </div>
-              )}
-            </>
-          ) : project.score !== undefined ? (
-            <div>
-              <p className="font-sans text-sm text-[#4b4731] mb-4">Backend returned a score but no detailed breakdown.</p>
-              <div className="flex items-center gap-2">
-                <span className="font-display font-bold text-6xl text-[#1c1b1b]">{project.score}</span>
-                <span className="font-display font-bold text-xl text-[#4b4731]">/100</span>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className="font-mono text-xs font-bold uppercase px-2 py-0.5 border border-[#121212]"
+                  style={{
+                    backgroundColor:
+                      evaluation?.evaluation_status === 'complete'
+                        ? '#00E5BE'
+                        : '#FFE600',
+                  }}
+                >
+                  {statusLabel}
+                </span>
+                <span className="font-mono text-xs text-[#4b4731]">
+                  Rubric v1.0 • 6 Core Categories
+                </span>
               </div>
             </div>
-          ) : (
-            <UnavailablePanel featureName="Evaluation Score" reason="No evaluation score has been returned by the backend yet." />
+
+            {/* Quick Actions Panel */}
+            <div className="lg:col-span-7 flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center justify-end">
+              <button
+                className="btn-primary flex items-center justify-center gap-2 py-3 px-5 text-sm cursor-pointer disabled:opacity-50"
+                onClick={onRequestReport}
+                disabled={reportLoading}
+              >
+                {reportLoading ? (
+                  <span
+                    className="w-4 h-4 border-2 border-[#121212] border-t-transparent animate-spin inline-block"
+                    style={{ borderRadius: '50%' }}
+                  />
+                ) : (
+                  <RefreshCw size={17} />
+                )}
+                {report?.reportAvailable ? 'Re-Evaluate Project' : 'Run Overall Evaluation'}
+              </button>
+
+              <button
+                className="btn-secondary flex items-center justify-center gap-2 py-3 px-5 text-sm cursor-pointer disabled:opacity-50 bg-[#00E5BE] hover:bg-[#00c9a7]"
+                onClick={onDownload}
+                disabled={!report?.reportAvailable || reportLoading}
+              >
+                {reportLoading ? (
+                  <span
+                    className="w-4 h-4 border-2 border-[#121212] border-t-transparent animate-spin inline-block"
+                    style={{ borderRadius: '50%' }}
+                  />
+                ) : (
+                  <Download size={17} />
+                )}
+                Download Formal PDF Report
+              </button>
+
+              {onExportJson && (
+                <button
+                  className="btn-secondary flex items-center justify-center gap-2 py-3 px-4 text-xs font-mono cursor-pointer disabled:opacity-50"
+                  onClick={onExportJson}
+                  disabled={!report?.reportAvailable || reportLoading}
+                  title="Export raw JSON evaluation data"
+                >
+                  <FileCode size={15} />
+                  JSON
+                </button>
+              )}
+            </div>
+          </div>
+
+          {reportError && (
+            <div className="mt-6">
+              <ErrorBanner message={reportError} />
+            </div>
+          )}
+
+          {/* Executive Summary */}
+          {evaluation?.executive_summary && (
+            <div className="mt-6 p-4 bg-[#FAF6EE] border-2 border-[#121212]">
+              <div className="flex items-center gap-2 mb-1.5 font-bold text-xs uppercase font-mono text-[#1c1b1b]">
+                <FileText size={15} />
+                <span>Executive Evaluation Summary</span>
+              </div>
+              <p className="font-sans text-sm text-[#3a3726] leading-relaxed">
+                {evaluation.executive_summary}
+              </p>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="bg-white border-[2.5px] border-[#121212] p-6" style={{ boxShadow: '4px 4px 0px #121212' }}>
-        {reportError && <ErrorBanner message={reportError} />}
-        <div className="flex flex-col sm:flex-row gap-4 mt-4">
-          {report?.reportAvailable ? (
-            <button
-              className="btn-primary"
-              onClick={onDownload}
-              disabled={reportLoading}
-            >
-              {reportLoading ? (
-                <span className="w-4 h-4 border-2 border-[#121212] border-t-transparent animate-spin" style={{ borderRadius: '50%' }} />
-              ) : (
-                <Download size={18} />
-              )}
-              Download Formal PDF Report
-            </button>
+      {/* ── 2. Category-Wise Rubric Breakdown ── */}
+      <div
+        className="bg-white border-[2.5px] border-[#121212] overflow-hidden"
+        style={{ boxShadow: '4px 4px 0px #121212' }}
+      >
+        <div className="bg-[#121212] text-white px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={18} className="text-[#ffe600]" />
+            <span className="font-display font-bold uppercase tracking-wide text-sm">
+              Multi-Dimensional Evaluation Breakdown
+            </span>
+          </div>
+          <span className="font-mono text-xs text-[#d8d5ca]">
+            Normalized Weighting (100% Total)
+          </span>
+        </div>
+
+        <div className="p-6">
+          {categories.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((cat, idx) => {
+                const name = cat.name || cat.title || cat.id || `Category ${idx + 1}`;
+                const rawScore = cat.score ?? cat.raw_score;
+                const weight = cat.weight ?? 0;
+                const contrib = cat.contribution ?? cat.weighted_score ?? 0;
+                const isAssessed = cat.status === 'assessed';
+
+                return (
+                  <div
+                    key={cat.id || idx}
+                    className="p-4 bg-[#FAF6EE] border-2 border-[#121212] flex flex-col justify-between"
+                    style={{ boxShadow: '2px 2px 0px #121212' }}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="font-display font-bold text-sm text-[#1c1b1b]">
+                          {name}
+                        </span>
+                        <span
+                          className="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 border border-[#121212]"
+                          style={{
+                            backgroundColor: isAssessed ? '#00E5BE' : '#FFF4D6',
+                          }}
+                        >
+                          {cat.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <span className="font-mono text-xs text-[#4b4731]">
+                          Weight: <b>{weight}%</b>
+                        </span>
+                        <span className="font-display font-bold text-lg text-[#1c1b1b]">
+                          {rawScore !== null && rawScore !== undefined ? `${rawScore}` : 'N/A'}
+                          <span className="text-xs text-[#4b4731] font-mono"> / 100</span>
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="h-3 w-full bg-white border border-[#121212] overflow-hidden mb-2">
+                        <div
+                          className="h-full bg-[#ffe600] border-r border-[#121212] transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, rawScore || 0))}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-[#121212] flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-[#4b4731]">Contribution:</span>
+                      <span className="font-bold text-[#1c1b1b]">{contrib.toFixed(1)} pts</span>
+                    </div>
+
+                    {cat.reason && (
+                      <p className="mt-2 text-[11px] text-[#4b4731] font-mono leading-tight">
+                        {cat.reason}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : report?.scoreBreakdown && report.scoreBreakdown.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {report.scoreBreakdown.map((s) => (
+                <div
+                  key={s.dimension}
+                  className="p-3 bg-[#FAF6EE] border-2 border-[#121212] flex flex-col justify-between"
+                  style={{ boxShadow: '2px 2px 0px #121212' }}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-display font-bold text-sm">{s.dimension}</span>
+                    <span className="font-mono font-bold text-sm">
+                      {s.score} / {s.maxScore}
+                    </span>
+                  </div>
+                  {s.notes && (
+                    <span className="font-mono text-[10px] text-[#4b4731]">{s.notes}</span>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
-            <button
-              className="btn-secondary"
-              onClick={onRequestReport}
-              disabled={reportLoading}
-            >
-              {reportLoading ? (
-                <span className="w-4 h-4 border-2 border-[#121212] border-t-transparent animate-spin" style={{ borderRadius: '50%' }} />
-              ) : (
-                <Edit3 size={18} />
-              )}
-              Generate Report
-            </button>
+            <div className="p-6 text-center">
+              <p className="font-mono text-sm text-[#4b4731]">
+                No category breakdown available yet. Run the overall evaluation above.
+              </p>
+            </div>
           )}
         </div>
-        <p className="font-mono text-[10px] text-[#4b4731] mt-3">
-          Report generation triggers the backend evaluation engine. PDF is produced from actual backend results.
+      </div>
+
+      {/* ── 3. Tri-Pillar Synthesis: Strengths, Weaknesses, Viva Risks ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Identified Strengths */}
+        <div
+          className="bg-white border-[2.5px] border-[#121212] flex flex-col"
+          style={{ boxShadow: '4px 4px 0px #121212' }}
+        >
+          <div className="bg-[#00E5BE] border-b-2 border-[#121212] px-4 py-2.5 flex items-center gap-2">
+            <CheckCircle size={17} className="text-[#121212]" />
+            <span className="font-display font-bold text-xs uppercase tracking-wide">
+              Identified Strengths ({strengths.length})
+            </span>
+          </div>
+          <div className="p-4 flex-1">
+            {strengths.length > 0 ? (
+              <ul className="space-y-2">
+                {strengths.map((str, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-[#1c1b1b] font-sans leading-relaxed"
+                  >
+                    <span className="text-[#008970] font-bold font-mono mt-0.5">✓</span>
+                    <span>{str}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#4b4731] font-mono italic">
+                No distinct strengths logged for this evaluation.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Technical Weaknesses */}
+        <div
+          className="bg-white border-[2.5px] border-[#121212] flex flex-col"
+          style={{ boxShadow: '4px 4px 0px #121212' }}
+        >
+          <div className="bg-[#FFE600] border-b-2 border-[#121212] px-4 py-2.5 flex items-center gap-2">
+            <AlertTriangle size={17} className="text-[#121212]" />
+            <span className="font-display font-bold text-xs uppercase tracking-wide">
+              Areas for Improvement ({weaknesses.length})
+            </span>
+          </div>
+          <div className="p-4 flex-1">
+            {weaknesses.length > 0 ? (
+              <ul className="space-y-2">
+                {weaknesses.map((w, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-[#1c1b1b] font-sans leading-relaxed"
+                  >
+                    <span className="text-[#b43b5b] font-bold font-mono mt-0.5">•</span>
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#4b4731] font-mono italic">
+                No major weaknesses identified.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Viva Defense & Integrity Risks */}
+        <div
+          className="bg-white border-[2.5px] border-[#121212] flex flex-col"
+          style={{ boxShadow: '4px 4px 0px #121212' }}
+        >
+          <div className="bg-[#FF5C8D] text-white border-b-2 border-[#121212] px-4 py-2.5 flex items-center gap-2">
+            <ShieldAlert size={17} className="text-[#121212]" />
+            <span className="font-display font-bold text-xs uppercase tracking-wide text-[#121212]">
+              Viva Defense Risks ({risks.length})
+            </span>
+          </div>
+          <div className="p-4 flex-1">
+            {risks.length > 0 ? (
+              <ul className="space-y-2">
+                {risks.map((r, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-[#1c1b1b] font-sans leading-relaxed"
+                  >
+                    <span className="text-[#FF5C8D] font-bold font-mono mt-0.5">!</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#4b4731] font-mono italic">
+                No high-priority defense risks flagged.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. Prioritized Action Plan & Recommendations ── */}
+      {recommendations.length > 0 && (
+        <div
+          className="bg-white border-[2.5px] border-[#121212] overflow-hidden"
+          style={{ boxShadow: '4px 4px 0px #121212' }}
+        >
+          <div className="bg-[#FAF6EE] border-b-2 border-[#121212] px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap size={18} className="text-[#1c1b1b]" />
+              <span className="font-display font-bold uppercase tracking-wide text-sm">
+                Prioritized Action Plan ({recommendations.length} Recommendations)
+              </span>
+            </div>
+            <span className="font-mono text-xs text-[#4b4731]">
+              Ranked by Evaluator Priority
+            </span>
+          </div>
+
+          <div className="p-6 divide-y-2 divide-[#121212]">
+            {recommendations.map((rec, idx) => {
+              const priority = rec.priority || 'Medium';
+              const isCritical = priority === 'Critical' || priority === 'Immediate';
+              const isHigh = priority === 'High' || priority === 'Important';
+
+              return (
+                <div key={idx} className={`py-4 ${idx === 0 ? 'pt-0' : ''}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 border border-[#121212]"
+                        style={{
+                          backgroundColor: isCritical
+                            ? '#FF5C8D'
+                            : isHigh
+                            ? '#FFE600'
+                            : '#D8B4FE',
+                          color: '#121212',
+                        }}
+                      >
+                        {priority}
+                      </span>
+                      <span className="font-display font-bold text-sm text-[#1c1b1b]">
+                        {rec.title || rec.action}
+                      </span>
+                    </div>
+                    {(rec.sourceModule || rec.target_area) && (
+                      <span className="font-mono text-[10px] bg-[#FAF6EE] border border-[#121212] px-2 py-0.5">
+                        {rec.sourceModule || rec.target_area}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-[#3a3726] font-sans leading-relaxed mb-2">
+                    {rec.description || rec.rationale}
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    {(rec.recommendedAction || rec.action) && (
+                      <div className="p-2.5 bg-[#FAF6EE] border border-[#121212] text-xs">
+                        <span className="font-mono font-bold text-[10px] uppercase block mb-1 text-[#1c1b1b]">
+                          Action:
+                        </span>
+                        <span className="text-[#4b4731]">{rec.recommendedAction || rec.action}</span>
+                      </div>
+                    )}
+                    {(rec.expectedBenefit || rec.whyItMatters) && (
+                      <div className="p-2.5 bg-[#EBF7F5] border border-[#121212] text-xs">
+                        <span className="font-mono font-bold text-[10px] uppercase block mb-1 text-[#006b58]">
+                          Expected Benefit:
+                        </span>
+                        <span className="text-[#006b58]">{rec.expectedBenefit || rec.whyItMatters}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Academic Disclaimer & Advisory Notice ── */}
+      <div className="bg-[#FAF6EE] border-2 border-[#121212] p-4 text-xs text-[#4b4731] leading-relaxed">
+        <div className="flex items-center gap-2 mb-1 text-[#1c1b1b] font-bold font-mono uppercase text-[11px]">
+          <Shield size={14} />
+          <span>Academic Evaluation Standard &amp; Faculty Notice</span>
+        </div>
+        <p>
+          ProjectLens provides deterministic screening signals, evidence extraction, and
+          rubric-weighted scores to assist evaluation panels. These metrics serve as an advisory
+          foundation to guide oral examination (viva voce). Final scoring, grading, and academic
+          integrity decisions remain the sole prerogative of faculty evaluators.
         </p>
       </div>
     </div>
@@ -4389,10 +5825,23 @@ export default function ProjectWorkspacePage() {
     setReportLoading(true);
     setReportError(null);
     try {
-      await requestReport(projectId);
+      await triggerEvaluation(projectId);
       await load();
     } catch (err) {
       setReportError(err instanceof Error ? err.message : 'Failed to request report.');
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  async function handleDownloadJson() {
+    if (!projectId || !project) return;
+    setReportLoading(true);
+    setReportError(null);
+    try {
+      await downloadEvaluationJson(projectId, `${project.title || projectId}_evaluation.json`);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'JSON export failed.');
     } finally {
       setReportLoading(false);
     }
@@ -4504,15 +5953,17 @@ export default function ProjectWorkspacePage() {
             )}
           </div>
           <div className="p-6 flex flex-col items-center justify-center text-center flex-1">
-            {project.score !== undefined ? (
+            {analysis?.evaluationReport?.overallScore !== undefined || (project.score !== undefined && project.score !== null) ? (
               <>
                 <div className="flex items-baseline gap-1 my-2">
                   <span className="font-display font-bold text-[60px] text-[#1c1b1b] leading-none tracking-tighter">
-                    {project.score}
+                    {analysis?.evaluationReport?.overallScore ?? project.score}
                   </span>
                   <span className="font-display font-bold text-xl text-[#4b4731]">/100</span>
                 </div>
-                <p className="font-mono text-[11px] text-[#4b4731]">Faculty Baseline Score from Backend</p>
+                <p className="font-mono text-[11px] text-[#4b4731]">
+                  {analysis?.evaluationReport?.grade ? `Faculty Grade ${analysis.evaluationReport.grade}` : 'Faculty Baseline Score from Backend'}
+                </p>
               </>
             ) : (
               <div className="text-center py-4">
@@ -4581,10 +6032,10 @@ export default function ProjectWorkspacePage() {
                 {tab.label}
                 {badge && (
                   <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 border border-[#121212] ${tab.id === 'similarity' ? 'bg-[#FF5C8D] text-white' :
-                      tab.id === 'code' ? 'bg-[#ffe600] text-[#1c1b1b]' :
-                        tab.id === 'docs' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
-                          tab.id === 'ai' ? 'bg-[#FFF4D6] text-[#1c1b1b]' :
-                            'bg-[#00E5BE] text-[#1c1b1b]'
+                    tab.id === 'code' ? 'bg-[#ffe600] text-[#1c1b1b]' :
+                      tab.id === 'docs' ? 'bg-[#D8B4FE] text-[#1c1b1b]' :
+                        tab.id === 'ai' ? 'bg-[#FFF4D6] text-[#1c1b1b]' :
+                          'bg-[#00E5BE] text-[#1c1b1b]'
                     }`}>
                     {badge}
                   </span>
@@ -4664,7 +6115,7 @@ export default function ProjectWorkspacePage() {
         )}
         {activeTab === 'viva' && (
           <ErrorBoundary sectionName="Viva Questions">
-            <VivaTab analysis={analysis} />
+            <VivaTab project={project} analysis={analysis} />
           </ErrorBoundary>
         )}
         {activeTab === 'report' && (
@@ -4674,6 +6125,7 @@ export default function ProjectWorkspacePage() {
               analysis={analysis}
               onDownload={handleDownload}
               onRequestReport={handleRequestReport}
+              onExportJson={handleDownloadJson}
               reportLoading={reportLoading}
               reportError={reportError}
             />

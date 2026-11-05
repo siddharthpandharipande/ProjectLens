@@ -56,13 +56,46 @@ class Settings(BaseSettings):
     LLM_MAX_OUTPUT_TOKENS: int = 2000
     LLM_TEMPERATURE: float = 0.2
 
+    # Phase 8 Google Gemini Configuration
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_TIMEOUT_SECONDS: int = 60
+    GEMINI_MAX_RETRIES: int = 2
+
+    @property
+    def gemini_api_key(self) -> Optional[str]:
+        """Return configured Google Gemini API key."""
+        if self.GEMINI_API_KEY and self.GEMINI_API_KEY.strip():
+            return self.GEMINI_API_KEY.strip()
+        if self.LLM_PROVIDER.lower() == "gemini" and self.LLM_API_KEY and self.LLM_API_KEY.strip():
+            return self.LLM_API_KEY.strip()
+        return None
+
+    @property
+    def gemini_configured(self) -> bool:
+        """Return True when LLM is enabled and a Gemini API key is configured."""
+        if not self.LLM_ENABLED:
+            return False
+        return bool(self.gemini_api_key)
+
+    @property
+    def effective_gemini_model(self) -> str:
+        """Return effective Gemini model name."""
+        if self.LLM_MODEL and "gemini" in self.LLM_MODEL.lower():
+            return self.LLM_MODEL.strip()
+        if self.GEMINI_MODEL and self.GEMINI_MODEL.strip():
+            return self.GEMINI_MODEL.strip()
+        return "gemini-2.5-flash"
+
     @property
     def api_key(self) -> Optional[str]:
-        """Return configured API key, preferring OPENROUTER_API_KEY then LLM_API_KEY."""
+        """Return configured API key based on provider preference and availability."""
         if self.OPENROUTER_API_KEY and self.OPENROUTER_API_KEY.strip():
             return self.OPENROUTER_API_KEY.strip()
         if self.LLM_API_KEY and self.LLM_API_KEY.strip():
             return self.LLM_API_KEY.strip()
+        if self.gemini_api_key and self.gemini_api_key.strip():
+            return self.gemini_api_key.strip()
         return None
 
     @property
@@ -70,7 +103,7 @@ class Settings(BaseSettings):
         """Return True when LLM is enabled and a non-empty API key is configured."""
         if not self.LLM_ENABLED:
             return False
-        return bool(self.api_key)
+        return bool(self.api_key and self.api_key.strip())
 
     @field_validator("DEBUG", mode="before")
     @classmethod

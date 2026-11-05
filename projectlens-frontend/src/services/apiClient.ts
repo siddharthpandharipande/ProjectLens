@@ -219,4 +219,25 @@ export const apiClient = {
     if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}: ${res.statusText}`);
     return res.blob();
   },
+
+  /** Trigger comprehensive overall project evaluation. */
+  async triggerEvaluation<T>(projectId: string): Promise<T> {
+    const res = await fetch(`${BASE_URL}/api/projects/${projectId}/evaluate`, {
+      method: 'POST',
+    });
+    return handleResponse<T>(res);
+  },
+
+  /** Fetch latest evaluation details for a project. */
+  async fetchEvaluation<T>(projectId: string): Promise<T> {
+    const res = await fetch(`${BASE_URL}/api/projects/${projectId}/evaluation`);
+    return handleResponse<T>(res);
+  },
+
+  /** Download machine-readable evaluation JSON. */
+  async downloadEvaluationJson(projectId: string): Promise<Blob> {
+    const res = await fetch(`${BASE_URL}/api/projects/${projectId}/evaluation/export.json`);
+    if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}: ${res.statusText}`);
+    return res.blob();
+  },
 };

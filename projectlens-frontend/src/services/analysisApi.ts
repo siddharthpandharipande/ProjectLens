@@ -3,7 +3,14 @@
  * Service methods for fetching analysis results.
  */
 import { apiClient, ApiError } from './apiClient';
-import type { ProjectAnalysis, VivaQuestion, EvaluationReport, AIAssistanceResult, InnovationAnalysisResponse } from '../types/analysis';
+import type {
+  ProjectAnalysis,
+  VivaQuestion,
+  EvaluationReport,
+  ProjectEvaluationDetails,
+  AIAssistanceResult,
+  InnovationAnalysisResponse,
+} from '../types/analysis';
 
 /** Fetch all analysis results for a project. May be partial if still processing. */
 export async function fetchAnalysis(projectId: string): Promise<ProjectAnalysis> {
@@ -57,9 +64,32 @@ export async function requestReport(projectId: string): Promise<EvaluationReport
   return apiClient.requestReport<EvaluationReport>(projectId);
 }
 
+/** Trigger comprehensive overall project evaluation. */
+export async function triggerEvaluation(projectId: string): Promise<ProjectEvaluationDetails> {
+  return apiClient.triggerEvaluation<ProjectEvaluationDetails>(projectId);
+}
+
+/** Fetch latest evaluation details for a project. */
+export async function fetchEvaluation(projectId: string): Promise<ProjectEvaluationDetails> {
+  return apiClient.fetchEvaluation<ProjectEvaluationDetails>(projectId);
+}
+
 /** Download the PDF report as a Blob and trigger browser download. */
 export async function downloadReport(projectId: string, filename: string): Promise<void> {
   const blob = await apiClient.downloadReport(projectId);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/** Download the machine-readable evaluation JSON. */
+export async function downloadEvaluationJson(projectId: string, filename: string): Promise<void> {
+  const blob = await apiClient.downloadEvaluationJson(projectId);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

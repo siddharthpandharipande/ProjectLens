@@ -19,6 +19,11 @@ from app.models.innovation import (
     ProjectInnovationAnalysis,
     ProjectInnovationMatch,
 )
+from app.models.viva import (
+    ProjectVivaQuestionSet,
+    ProjectVivaQuestion,
+)
+from app.models.evaluation import ProjectEvaluation
 
 __all__ = [
     "Project",
@@ -38,4 +43,7 @@ __all__ = [
     "ProjectAIAssistanceEvidenceSignal",
     "ProjectInnovationAnalysis",
     "ProjectInnovationMatch",
+    "ProjectVivaQuestionSet",
+    "ProjectVivaQuestion",
+    "ProjectEvaluation",
 ]

@@ -55,12 +55,29 @@ INNOVATION_SYSTEM_PROMPT = (
     "features, and potential technical contribution compared to peer submissions.\n\n"
     "STRICT RULES:\n"
     "1. Return ONLY valid JSON matching the requested schema. No markdown fences, no explanatory text outside JSON.\n"
-    "2. Every evidence reference you emit MUST use an evidence_id that appears in the input feature list. "
+    "2. Top-level JSON must contain these exact keys:\n"
+    "   - interpretation_status: 'completed'\n"
+    "   - innovation_summary: string\n"
+    "   - problem_understanding: string\n"
+    "   - proposed_solution_understanding: string\n"
+    "   - potential_contributions: list of strings\n"
+    "   - distinctive_elements: list of strings\n"
+    "   - cohort_comparison_interpretation: string\n"
+    "   - evidence_references: list of objects with evidence_id and observation\n"
+    "   - alternative_explanations: list of strings\n"
+    "   - faculty_follow_up_recommendations: list of strings\n"
+    "   - innovation_strengths: list of strings\n"
+    "   - missing_evidence: list of strings\n"
+    "   - improvement_recommendations: list of strings\n"
+    "   - confidence_classification: string ('Directly Verified', 'Strong Evidence', 'Moderate Evidence', 'Indirect Evidence', or 'Insufficient Evidence')\n"
+    "   - confidence_rationale: string\n"
+    "   - limitations: list of strings\n"
+    "3. Every evidence reference you emit MUST use an evidence_id that appears in the input feature list. "
     "Do not invent or reference evidence IDs that were not supplied.\n"
-    "3. Do not invent project descriptions, features, or similarity percentages not in the input.\n"
-    "4. Do not output an arbitrary global novelty percentage. Assess qualitative distinctiveness and technical contribution.\n"
-    "5. Clearly identify areas requiring faculty verification during oral viva.\n"
-    "6. Include alternative explanations (e.g. standard framework boilerplate, open-source libraries) and limitations."
+    "4. Do not invent project descriptions, features, or similarity percentages not in the input.\n"
+    "5. Do not output an arbitrary global novelty percentage. Assess qualitative distinctiveness and technical contribution.\n"
+    "6. Clearly identify areas requiring faculty verification during oral viva.\n"
+    "7. Include alternative explanations (e.g. standard framework boilerplate, open-source libraries) and limitations."
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +93,7 @@ _TOKEN_VALUE = re.compile(r"(?i)\b(?:sk|or|key)-[A-Za-z0-9_-]{12,}\b")
 def build_llm_error_payload(exc: Exception) -> Dict[str, Any]:
     """Build standardized, safe error dictionary for UI serialization and database storage."""
     diagnostic: Optional[LLMDiagnosticMetadata] = getattr(exc, "diagnostic", None)
+    provider_name = "Google Gemini" if settings.LLM_PROVIDER.lower() == "gemini" else "OpenRouter"
 
     error_type = diagnostic.classification if diagnostic and diagnostic.classification else None
     if not error_type:
@@ -106,11 +124,11 @@ def build_llm_error_payload(exc: Exception) -> Dict[str, Any]:
     ) or ""
 
     if error_type == "auth_invalid_key" and not recommended_action:
-        user_message = "Your OpenRouter API key is invalid."
-        recommended_action = "Your OpenRouter API key is invalid. Update the key in the backend configuration."
+        user_message = f"Your {provider_name} API key is invalid."
+        recommended_action = f"Your {provider_name} API key is invalid. Update the key in the backend configuration (.env)."
     elif error_type == "account_quota_exceeded" and not recommended_action:
-        user_message = "OpenRouter account quota exceeded or credits depleted."
-        recommended_action = "You can configure another authorized OpenRouter account by updating your API key."
+        user_message = f"{provider_name} account quota exceeded or credits depleted."
+        recommended_action = f"You can configure another authorized {provider_name} account or wait for quota reset."
     elif error_type == "upstream_provider_overloaded" and not recommended_action:
         user_message = "The selected model provider is temporarily overloaded."
         recommended_action = (
@@ -118,11 +136,11 @@ def build_llm_error_payload(exc: Exception) -> Dict[str, Any]:
             "or configure another available model/provider. Switching accounts may not resolve this issue."
         )
     elif error_type == "service_unavailable" and not recommended_action:
-        user_message = "OpenRouter or upstream provider is temporarily unavailable."
-        recommended_action = "OpenRouter or upstream provider is temporarily unavailable. Please try again later."
+        user_message = f"{provider_name} or upstream provider is temporarily unavailable."
+        recommended_action = f"{provider_name} or upstream provider is temporarily unavailable. Please try again later."
     elif error_type == "network_error" and not recommended_action:
-        user_message = "Unable to connect to OpenRouter network."
-        recommended_action = "Unable to connect to OpenRouter. Please check your internet connection or backend network settings."
+        user_message = f"Unable to connect to {provider_name} network."
+        recommended_action = f"Unable to connect to {provider_name}. Please check your internet connection or backend network settings."
 
     return {
         "error_type": error_type,
@@ -131,7 +149,7 @@ def build_llm_error_payload(exc: Exception) -> Dict[str, Any]:
             if diagnostic and diagnostic.status_code is not None
             else getattr(exc, "status_code", None)
         ),
-        "title": "OpenRouter AI Service Unavailable",
+        "title": f"{provider_name} AI Service Unavailable",
         "subtitle": "AI interpretation could not be completed. Your deterministic project analysis is still available.",
         "user_message": user_message,
         "recommended_action": recommended_action,
@@ -141,35 +159,58 @@ def build_llm_error_payload(exc: Exception) -> Dict[str, Any]:
 
 
 class OpenRouterClient:
-    """OpenAI-compatible client for OpenRouter."""
+    """Unified LLM client supporting Google Gemini (Phase 8/9) and OpenRouter (Phase 7A)."""
 
     def __init__(self) -> None:
         self.enabled = settings.llm_configured
         self.client: Optional[OpenAI] = None
+        self.gemini_client: Optional[Any] = None
+        self.is_gemini: bool = settings.LLM_PROVIDER.lower() == "gemini" or (
+            settings.gemini_configured and not settings.OPENROUTER_API_KEY
+        )
+
         if self.enabled:
-            try:
-                self.client = OpenAI(
-                    base_url=settings.LLM_BASE_URL,
-                    api_key=settings.api_key or "",
-                    timeout=settings.LLM_TIMEOUT_SECONDS,
-                    default_headers={
-                        "HTTP-Referer": "https://projectlens.local",
-                        "X-Title": "ProjectLens Academic Evaluation",
-                    },
-                )
-                logger.info(
-                    "OpenRouter LLM client enabled (model=%s, base_url=%s)",
-                    settings.LLM_MODEL,
-                    settings.LLM_BASE_URL,
-                )
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("Failed to initialise OpenRouter client: %s", exc)
-                self.enabled = False
-                self.client = None
+            if self.is_gemini:
+                try:
+                    from google import genai
+                    self.gemini_client = genai.Client(api_key=settings.gemini_api_key)
+                    logger.info(
+                        "Google Gemini LLM client enabled (model=%s, provider=%s)",
+                        settings.effective_gemini_model,
+                        settings.LLM_PROVIDER,
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.warning("Failed to initialize Google Gemini client: %s", exc)
+                    self.enabled = False
+                    self.gemini_client = None
+            else:
+                try:
+                    self.client = OpenAI(
+                        base_url=settings.LLM_BASE_URL,
+                        api_key=settings.api_key or "",
+                        timeout=settings.LLM_TIMEOUT_SECONDS,
+                        default_headers={
+                            "HTTP-Referer": "https://projectlens.local",
+                            "X-Title": "ProjectLens Academic Evaluation",
+                        },
+                    )
+                    logger.info(
+                        "OpenRouter LLM client enabled (model=%s, base_url=%s)",
+                        settings.LLM_MODEL,
+                        settings.LLM_BASE_URL,
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.warning("Failed to initialise OpenRouter client: %s", exc)
+                    self.enabled = False
+                    self.client = None
 
     def is_available(self) -> bool:
         """Return True when the client is enabled and initialised."""
-        return self.enabled and self.client is not None
+        if not self.enabled:
+            return False
+        if getattr(self, "is_gemini", False):
+            return self.gemini_client is not None
+        return self.client is not None
 
     def interpret_evidence(
         self,
@@ -177,32 +218,109 @@ class OpenRouterClient:
         valid_signal_ids: List[str],
         discard_invalid_references: bool = False,
     ) -> LLMInterpretation:
-        """Send the evidence summary to OpenRouter and validate the response.
-
-        Args:
-            evidence: Compact deterministic evidence summary.
-            valid_signal_ids: Signal IDs that the LLM is allowed to reference.
-
-        Returns:
-            A validated LLMInterpretation.
-
-        Raises:
-            LLMConfigurationError: if LLM is not configured.
-            LLMAuthenticationError: on provider 401.
-            LLMQuotaExceededError: on provider 402 or platform quota limit.
-            LLMRateLimitError: on provider 429.
-            LLMTimeoutError: on provider timeout.
-            LLMModelUnavailableError: on provider 404 for the model.
-            LLMConnectionError: on provider network connection failure.
-            LLMProviderUnavailableError: on other provider errors.
-            LLMInvalidResponseError: on invalid JSON / missing content.
-            LLMInvalidReferenceError: if LLM references unknown signal IDs.
-        """
+        """Send the evidence summary to the configured LLM provider and validate the response."""
         if not self.is_available():
             raise LLMConfigurationError(
                 "LLM integration is not available. Enable LLM_ENABLED and provide an API key."
             )
+        if getattr(self, "is_gemini", False) and getattr(self, "gemini_client", None) is not None:
+            return self._interpret_evidence_gemini(
+                evidence=evidence,
+                valid_signal_ids=valid_signal_ids,
+                discard_invalid_references=discard_invalid_references,
+            )
+        return self._interpret_evidence_openrouter(
+            evidence=evidence,
+            valid_signal_ids=valid_signal_ids,
+            discard_invalid_references=discard_invalid_references,
+        )
 
+    def _interpret_evidence_gemini(
+        self,
+        evidence: EvidenceSummary,
+        valid_signal_ids: List[str],
+        discard_invalid_references: bool = False,
+    ) -> LLMInterpretation:
+        """Execute evidence interpretation via Google Gemini API."""
+        try:
+            from google.genai import types
+        except ImportError:
+            raise LLMConfigurationError("google-genai package is not installed.")
+
+        user_prompt = build_user_prompt(evidence)
+        max_chars = settings.LLM_MAX_INPUT_CHARS
+        if len(user_prompt) > max_chars:
+            user_prompt = user_prompt[:max_chars]
+            logger.warning("Truncated LLM input to %d characters.", max_chars)
+
+        model_name = settings.effective_gemini_model
+        config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=settings.LLM_TEMPERATURE,
+            response_mime_type="application/json",
+        )
+
+        max_retries = max(1, settings.GEMINI_MAX_RETRIES)
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(
+                    "Generating evidence interpretation via Gemini (model=%s, attempt=%d)",
+                    model_name,
+                    attempt + 1,
+                )
+                response = self.gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=config,
+                )
+                raw_text = response.text or ""
+                cleaned = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
+                cleaned = re.sub(r"\s*```$", "", cleaned.strip(), flags=re.MULTILINE)
+                if not cleaned:
+                    raise LLMInvalidResponseError("Gemini returned empty response text.")
+
+                try:
+                    data = json.loads(cleaned)
+                except (json.JSONDecodeError, ValueError) as json_err:
+                    logger.warning("Gemini returned invalid JSON: %s", json_err)
+                    raise LLMInvalidResponseError("LLM returned invalid JSON.") from json_err
+
+                try:
+                    interpretation = LLMInterpretation.model_validate(data)
+                except ValidationError as val_err:
+                    logger.warning("Gemini response failed Pydantic validation: %s", val_err)
+                    raise LLMInvalidResponseError("LLM response failed schema validation.") from val_err
+
+                self._validate_references(
+                    interpretation,
+                    set(valid_signal_ids),
+                    discard_invalid=discard_invalid_references,
+                )
+                return interpretation
+
+            except (LLMInvalidResponseError, LLMInvalidReferenceError):
+                raise
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_retries:
+                    import time
+                    time.sleep(1.0 * (attempt + 1))
+                else:
+                    self._map_gemini_exception(exc)
+
+        if last_exc:
+            self._map_gemini_exception(last_exc)
+        raise LLMProviderUnavailableError("Gemini generation failed after retries.")
+
+    def _interpret_evidence_openrouter(
+        self,
+        evidence: EvidenceSummary,
+        valid_signal_ids: List[str],
+        discard_invalid_references: bool = False,
+    ) -> LLMInterpretation:
+        """Send the evidence summary to OpenRouter and validate the response."""
         user_prompt = build_user_prompt(evidence)
         # Enforce the input character limit deterministically.
         max_chars = settings.LLM_MAX_INPUT_CHARS
@@ -308,7 +426,7 @@ class OpenRouterClient:
         valid_evidence_ids: List[str],
         discard_invalid_references: bool = False,
     ) -> LLMInnovationInterpretation:
-        """Send the structured innovation prompt to OpenRouter and validate response.
+        """Send the structured innovation prompt to configured LLM and validate response.
 
         Args:
             user_prompt: Compact, PII-free innovation summary.
@@ -321,7 +439,103 @@ class OpenRouterClient:
             raise LLMConfigurationError(
                 "LLM integration is not available. Enable LLM_ENABLED and provide an API key."
             )
+        if getattr(self, "is_gemini", False) and getattr(self, "gemini_client", None) is not None:
+            return self._interpret_innovation_gemini(
+                user_prompt=user_prompt,
+                valid_evidence_ids=valid_evidence_ids,
+                discard_invalid_references=discard_invalid_references,
+            )
+        return self._interpret_innovation_openrouter(
+            user_prompt=user_prompt,
+            valid_evidence_ids=valid_evidence_ids,
+            discard_invalid_references=discard_invalid_references,
+        )
 
+    def _interpret_innovation_gemini(
+        self,
+        user_prompt: str,
+        valid_evidence_ids: List[str],
+        discard_invalid_references: bool = False,
+    ) -> LLMInnovationInterpretation:
+        """Execute innovation interpretation via Google Gemini API."""
+        try:
+            from google.genai import types
+        except ImportError:
+            raise LLMConfigurationError("google-genai package is not installed.")
+
+        max_chars = settings.LLM_MAX_INPUT_CHARS
+        if len(user_prompt) > max_chars:
+            user_prompt = user_prompt[:max_chars]
+            logger.warning("Truncated LLM innovation input to %d characters.", max_chars)
+
+        model_name = settings.effective_gemini_model
+        config = types.GenerateContentConfig(
+            system_instruction=INNOVATION_SYSTEM_PROMPT,
+            temperature=settings.LLM_TEMPERATURE,
+            response_mime_type="application/json",
+        )
+
+        max_retries = max(1, settings.GEMINI_MAX_RETRIES)
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(
+                    "Generating innovation interpretation via Gemini (model=%s, attempt=%d)",
+                    model_name,
+                    attempt + 1,
+                )
+                response = self.gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=config,
+                )
+                raw_text = response.text or ""
+                cleaned = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
+                cleaned = re.sub(r"\s*```$", "", cleaned.strip(), flags=re.MULTILINE)
+                if not cleaned:
+                    raise LLMInvalidResponseError("Gemini returned empty response text.")
+
+                try:
+                    data = json.loads(cleaned)
+                except (json.JSONDecodeError, ValueError) as json_err:
+                    logger.warning("Gemini returned invalid JSON: %s", json_err)
+                    raise LLMInvalidResponseError("LLM returned invalid JSON.") from json_err
+
+                try:
+                    interpretation = LLMInnovationInterpretation.model_validate(data)
+                except ValidationError as val_err:
+                    logger.warning("Gemini innovation response failed Pydantic validation: %s", val_err)
+                    raise LLMInvalidResponseError("LLM response failed schema validation.") from val_err
+
+                self._validate_innovation_references(
+                    interpretation,
+                    set(valid_evidence_ids),
+                    discard_invalid=discard_invalid_references,
+                )
+                return interpretation
+
+            except (LLMInvalidResponseError, LLMInvalidReferenceError):
+                raise
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_retries:
+                    import time
+                    time.sleep(1.0 * (attempt + 1))
+                else:
+                    self._map_gemini_exception(exc)
+
+        if last_exc:
+            self._map_gemini_exception(last_exc)
+        raise LLMProviderUnavailableError("Gemini innovation generation failed after retries.")
+
+    def _interpret_innovation_openrouter(
+        self,
+        user_prompt: str,
+        valid_evidence_ids: List[str],
+        discard_invalid_references: bool = False,
+    ) -> LLMInnovationInterpretation:
+        """Send the structured innovation prompt to OpenRouter and validate response."""
         max_chars = settings.LLM_MAX_INPUT_CHARS
         if len(user_prompt) > max_chars:
             user_prompt = user_prompt[:max_chars]
@@ -414,6 +628,89 @@ class OpenRouterClient:
         )
 
         return interpretation
+
+    def _map_gemini_exception(self, exc: Exception) -> None:
+        """Map Google Gemini API exceptions to typed LLM exceptions with diagnostics."""
+        code = getattr(exc, "code", None)
+        status_code = code if isinstance(code, int) else None
+        msg = str(getattr(exc, "message", None) or str(exc))
+        sanitized_msg = self._sanitize_text(msg, _MAX_DIAGNOSTIC_TEXT) or "Gemini API error."
+        lower_msg = sanitized_msg.lower()
+
+        classification = "unknown_error"
+        user_message = sanitized_msg
+        recommended_action = "Deterministic project analysis is still available."
+
+        if (status_code in (401, 403)) or any(k in lower_msg for k in ("api_key_invalid", "unauthenticated", "permission_denied", "api key not valid")):
+            classification = "auth_invalid_key"
+            status_code = status_code or 401
+            user_message = "Your Google Gemini API key is invalid or unauthorized."
+            recommended_action = "Update the GEMINI_API_KEY in the backend configuration (.env)."
+            diagnostic = LLMDiagnosticMetadata(
+                status_code=status_code,
+                error_message=sanitized_msg,
+                classification=classification,
+                user_message=user_message,
+                recommended_action=recommended_action,
+            )
+            raise LLMAuthenticationError(user_message, diagnostic=diagnostic) from exc
+
+        if (status_code == 429) or any(k in lower_msg for k in ("resource_exhausted", "quota", "rate limit", "too many requests")):
+            classification = "account_quota_exceeded" if ("quota" in lower_msg or "credit" in lower_msg) else "upstream_provider_overloaded"
+            status_code = status_code or 429
+            user_message = "Google Gemini rate limit or quota reached."
+            recommended_action = "The Google Gemini service is temporarily rate limited. Please try again in a few moments."
+            diagnostic = LLMDiagnosticMetadata(
+                status_code=status_code,
+                error_message=sanitized_msg,
+                classification=classification,
+                user_message=user_message,
+                recommended_action=recommended_action,
+            )
+            if classification == "account_quota_exceeded":
+                raise LLMQuotaExceededError(user_message, diagnostic=diagnostic) from exc
+            raise LLMRateLimitError(user_message, diagnostic=diagnostic) from exc
+
+        if (status_code == 404) or "not found" in lower_msg:
+            model_name = settings.effective_gemini_model
+            raise LLMModelUnavailableError(model_name) from exc
+
+        if (status_code in (408, 504)) or any(k in lower_msg for k in ("timeout", "deadline_exceeded", "timed out")):
+            classification = "timeout"
+            status_code = status_code or 504
+            user_message = "Google Gemini request timed out."
+            recommended_action = "The request to Google Gemini timed out. Please try again."
+            diagnostic = LLMDiagnosticMetadata(
+                status_code=status_code,
+                error_message=sanitized_msg,
+                classification=classification,
+                user_message=user_message,
+                recommended_action=recommended_action,
+            )
+            raise LLMTimeoutError(user_message, diagnostic=diagnostic) from exc
+
+        if any(k in lower_msg for k in ("connection", "network", "failed to connect", "socket", "dns")):
+            classification = "network_error"
+            user_message = "Unable to connect to Google Gemini service."
+            recommended_action = "Please check your internet connection or backend network settings."
+            diagnostic = LLMDiagnosticMetadata(
+                status_code=status_code,
+                error_message=sanitized_msg,
+                classification=classification,
+                user_message=user_message,
+                recommended_action=recommended_action,
+            )
+            raise LLMConnectionError(user_message, diagnostic=diagnostic) from exc
+
+        classification = "service_unavailable"
+        diagnostic = LLMDiagnosticMetadata(
+            status_code=status_code or 503,
+            error_message=sanitized_msg,
+            classification=classification,
+            user_message="Google Gemini AI service is temporarily unavailable.",
+            recommended_action="Please try again later. Deterministic analysis remains available.",
+        )
+        raise LLMProviderUnavailableError("Google Gemini AI service is temporarily unavailable.", diagnostic=diagnostic) from exc
 
     # ------------------------------------------------------------------
     # Internal helpers

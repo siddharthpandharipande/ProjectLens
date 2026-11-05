@@ -6,6 +6,7 @@ from app.config import settings
 from app.database import init_db
 from app.api.health import router as health_router
 from app.api.projects import router as projects_router
+from app.api.viva import router as viva_router
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Register routes
 app.include_router(health_router)
 app.include_router(projects_router)
+app.include_router(viva_router)
 
 
 @app.get("/", tags=["Root"])

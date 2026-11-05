@@ -1,6 +1,8 @@
 """Tests for Phase 7B Innovation Analyzer (profile extraction, cohort comparison, distinctiveness, LLM, API)."""
 
 from datetime import datetime, timezone
+import json
+from types import SimpleNamespace
 from typing import Any, Dict, List
 import pytest
 from fastapi.testclient import TestClient
@@ -193,7 +195,7 @@ def test_missing_problem_statement(db_session: Session):
 
     profile = ProjectProfileExtractor.extract_profile(db_session, "proj-no-problem")
     # Problem statement handles missing problem gracefully without crashing
-    assert profile.problem_statement == "" or "data converter" in profile.problem_statement.lower()
+    assert profile.problem_statement in ("", "Not identified from the available project documents.") or "data converter" in profile.problem_statement.lower()
 
 
 # =====================================================================
@@ -433,7 +435,10 @@ def test_dimension_wise_distinctiveness_assessment(db_session: Session):
         db_session,
         "eval-1",
         title="Blockchain Voting",
-        sections=[{"heading": "Overview", "content": "Cryptographic decentralized voting."}],
+        sections=[
+            {"heading": "Problem Statement", "content": "Centralized voting systems suffer from single points of failure and lack of auditability."},
+            {"heading": "Overview", "content": "Cryptographic decentralized voting system with verifiable tallying."},
+        ],
     )
     profile = ProjectProfileExtractor.extract_profile(db_session, "eval-1")
 
@@ -469,8 +474,8 @@ def test_empty_cohort_not_receiving_invented_high_score(db_session: Session):
     cat, scores, limitations = InnovationScoringEngine.evaluate(profile, cohort_size=0, matches=[])
 
     assert cat == CATEGORY_INSUFFICIENT_EVIDENCE
-    assert scores["problem_distinctiveness"] == 0.0
-    assert scores["feature_differentiation"] == 0.0
+    assert scores["problem_distinctiveness"] in (0.0, None)
+    assert scores["feature_differentiation"] in (0.0, None)
     assert any("No comparable cohort" in lim for lim in limitations)
 
 
@@ -724,3 +729,297 @@ def test_idempotent_database_persistence(db_session: Session):
     )
     # Match count matches cohort size exactly (no duplicate matches)
     assert len(matches) == res2.cohort_size
+
+
+# =====================================================================
+# 24. Heading-Only Documentation Rejection
+# =====================================================================
+
+def test_heading_only_documentation_rejected(db_session: Session):
+    sections = [
+        {"heading": "About", "content": "About"},
+        {"heading": "Overview", "content": "Overview"},
+        {"heading": "Introduction", "content": "Introduction"},
+    ]
+    _create_test_project(
+        db_session,
+        "proj-heading-only",
+        title="Heading Only Project",
+        sections=sections,
+    )
+
+    profile = ProjectProfileExtractor.extract_profile(db_session, "proj-heading-only")
+    assert profile.problem_statement == "Not identified from the available project documents."
+    assert profile.proposed_solution == "Not identified from the available project documents."
+
+
+# =====================================================================
+# 25. Insufficient Descriptions Not Invented
+# =====================================================================
+
+def test_insufficient_project_descriptions_not_invented(db_session: Session):
+    sections = [
+        {"heading": "Problem", "content": "Short."},
+        {"heading": "Solution", "content": "pip install test"},
+    ]
+    _create_test_project(
+        db_session,
+        "proj-short-stub",
+        title="Stub Project",
+        sections=sections,
+    )
+
+    profile = ProjectProfileExtractor.extract_profile(db_session, "proj-short-stub")
+    assert profile.problem_statement == "Not identified from the available project documents."
+    assert profile.proposed_solution == "Not identified from the available project documents."
+    assert "automated support for" not in profile.proposed_solution
+
+
+# =====================================================================
+# 26. Feature Classification for Code Components
+# =====================================================================
+
+def test_feature_classification_code_components(db_session: Session):
+    _create_test_project(
+        db_session,
+        "proj-code-modules",
+        title="Pipeline System",
+        has_readme=False,
+        file_names=["generate_data.py", "test_gx.py", "drift.py"],
+        sections=None,
+    )
+
+    profile = ProjectProfileExtractor.extract_profile(db_session, "proj-code-modules")
+    assert len(profile.features) >= 3
+    for f in profile.features:
+        assert f.evidence_type == EvidenceType.DETECTED_IMPLEMENTATION
+        assert f.name.startswith("Code Component: ")
+        assert "Internal technical component inferred from source file" in f.description
+        assert f.code_reference is not None
+
+
+# =====================================================================
+# 27. Cohort Display Names and Duplicate Disambiguation
+# =====================================================================
+
+def test_cohort_display_names_and_duplicate_disambiguation(db_session: Session):
+    _create_test_project(
+        db_session,
+        "target-proj",
+        title="Target Project",
+        file_names=["app.py", "service.py"],
+        sections=[{"heading": "Problem", "content": "High latency in medical triage systems causes dangerous bottlenecks."}],
+    )
+    # Peer with UUID / hash title
+    _create_test_project(
+        db_session,
+        "c74384b6-412e-4b68-809b-734f59346f08",
+        title="c74384b6-412e-4b68-809b-734f59346f08",
+        file_names=["triage.py"],
+        sections=[{"heading": "Problem", "content": "Triage bottlenecks in hospital admissions reduce patient throughput."}],
+    )
+    # Two peers sharing duplicate title "Shared Portal"
+    _create_test_project(
+        db_session,
+        "peer-dup-1111",
+        title="Shared Portal",
+        file_names=["portal1.py"],
+        sections=[{"heading": "Problem", "content": "Healthcare portal scheduling issues in remote clinical practices."}],
+    )
+    _create_test_project(
+        db_session,
+        "peer-dup-2222",
+        title="Shared Portal",
+        file_names=["portal2.py"],
+        sections=[{"heading": "Problem", "content": "Clinic portal scheduling issues in regional health network centers."}],
+    )
+
+    target_profile = ProjectProfileExtractor.extract_profile(db_session, "target-proj")
+    cohort_size, method, matches = CohortComparisonService.compare_project_to_cohort(db_session, target_profile)
+
+    assert cohort_size == 3
+    titles = [m["compared_project_title"] for m in matches]
+    # Internal hash title should be cleaned to Project (short_id)
+    assert any("Project (c74384b6)" in t for t in titles)
+    # Duplicate titles should be disambiguated with short_id
+    assert any("Shared Portal (peer-dup" in t for t in titles)
+
+
+# =====================================================================
+# 28. Duplicate Submission Detection and Screening Advisory
+# =====================================================================
+
+def test_duplicate_submission_detection(db_session: Session):
+    common_sections = [
+        {"heading": "Problem Statement", "content": "Clinical documentation workflow inefficiencies leading to burnout."},
+        {"heading": "Solution", "content": "Automated voice transcription pipeline for physician progress notes."},
+    ]
+    _create_test_project(
+        db_session,
+        "orig-submission",
+        title="Doctor Voice Notes",
+        file_names=["transcribe.py", "notes.py"],
+        sections=common_sections,
+    )
+    _create_test_project(
+        db_session,
+        "copy-submission",
+        title="Doctor Voice Notes",
+        file_names=["transcribe.py", "notes.py"],
+        sections=common_sections,
+    )
+
+    orig_profile = ProjectProfileExtractor.extract_profile(db_session, "orig-submission")
+    cohort_size, method, matches = CohortComparisonService.compare_project_to_cohort(db_session, orig_profile)
+
+    assert cohort_size >= 1
+    copy_match = next(m for m in matches if m["compared_project_id"] == "copy-submission")
+    assert copy_match["overall_similarity"] >= 0.85
+    assert "Potential exact duplicate submission detected" in copy_match["difference_summary"]
+    assert any(ref.get("observation") == "Screening signal only; not a plagiarism verdict." for ref in copy_match["evidence_references"])
+
+
+# =====================================================================
+# 29. Insufficient Evidence Scoring on Missing Problem Statement
+# =====================================================================
+
+def test_insufficient_evidence_scoring_on_missing_problem(db_session: Session):
+    _create_test_project(
+        db_session,
+        "no-prob-proj",
+        title="Generic Project",
+        has_readme=False,
+        file_names=["test.py"],
+        sections=None,
+    )
+    profile = ProjectProfileExtractor.extract_profile(db_session, "no-prob-proj")
+    mock_matches = [
+        {
+            "compared_project_id": "other-proj",
+            "problem_similarity": 0.0,
+            "solution_similarity": 0.0,
+            "feature_similarity": 0.2,
+            "overall_similarity": 0.1,
+        }
+    ]
+
+    cat, scores, limitations = InnovationScoringEngine.evaluate(profile, cohort_size=1, matches=mock_matches)
+    # Problem distinctiveness must be None (Insufficient Evidence), not a false 100% (1.0 - 0.0)
+    assert scores["problem_distinctiveness"] is None
+    assert scores["solution_distinctiveness"] is None
+
+
+# =====================================================================
+# 30. Phase 9: Five Feature Classes & Confidence Classifications
+# =====================================================================
+
+def test_innovation_five_feature_classes(db_session: Session):
+    """Verify all 5 feature classes: verified_match, documented_feature, detected_implementation, unverified_claim, proposed_future."""
+    from app.services.innovation.profile import EvidenceType, FeatureEvidence
+
+    # Setup project with documented features and future roadmap section
+    _create_test_project(
+        db_session,
+        "p-feat-classes",
+        title="Multi Feature Project",
+        has_readme=True,
+        file_names=["drone_controller.py", "auth_service.py", "telemetry_hub.py"],
+        sections=[
+            {
+                "heading": "Features & Capabilities",
+                "content": "- Drone Controller Engine\n- User Authentication System\n- Blockchain Ledger",
+            },
+            {
+                "heading": "Future Scope & Roadmap",
+                "content": "- Autonomous Swarm Navigation",
+            }
+        ]
+    )
+
+    profile = ProjectProfileExtractor.extract_profile(db_session, "p-feat-classes")
+    types = {f.evidence_type for f in profile.features}
+
+    # Should have verified match (drone controller in drone_controller.py)
+    assert EvidenceType.VERIFIED_MATCH in types or "verified_match" in types
+    # Should have proposed future (from Future Scope section)
+    assert EvidenceType.PROPOSED_FUTURE in types or "proposed_future" in types
+    # Should have unverified claim (Blockchain Ledger has no code)
+    assert EvidenceType.UNVERIFIED_CLAIM in types or "unverified_claim" in types
+
+
+def test_innovation_confidence_classification_and_rationale(db_session: Session):
+    """Verify confidence classification calculation and persistence in API schema."""
+    _create_test_project(
+        db_session,
+        "p-conf-test",
+        title="Confidence Test Project",
+        has_readme=True,
+        file_names=["main.py", "auth.py"],
+        sections=[
+            {
+                "heading": "Core Features",
+                "content": "- User Authentication Module",
+            }
+        ]
+    )
+
+    res = InnovationService.analyze_project(db_session, "p-conf-test", call_llm=False)
+    assert res.confidence_classification in (
+        "Directly Verified",
+        "Strong Evidence",
+        "Moderate Evidence",
+        "Indirect Evidence",
+        "Insufficient Evidence",
+    )
+    assert res.confidence_rationale is not None
+    assert len(res.confidence_rationale) > 10
+
+
+def test_gemini_client_innovation_interpretation_mock(monkeypatch):
+    """Verify OpenRouterClient._interpret_innovation_gemini validates schema."""
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "gemini")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "mock-gemini-key")
+    monkeypatch.setattr(settings, "LLM_ENABLED", True)
+
+    client = OpenRouterClient.__new__(OpenRouterClient)
+    client.enabled = True
+    client.is_gemini = True
+
+    mock_payload = {
+        "interpretation_status": "completed",
+        "innovation_summary": "Distinctive approach to telemetry handling.",
+        "problem_understanding": "Addresses real-time IoT drone communication.",
+        "proposed_solution_understanding": "Uses event-driven Python pipeline.",
+        "potential_contributions": ["Low latency queue."],
+        "distinctive_elements": ["Custom CRC checksum routing."],
+        "cohort_comparison_interpretation": "More granular than typical cohort projects.",
+        "evidence_references": [{"evidence_id": "FEAT-1", "observation": "Custom CRC check."}],
+        "alternative_explanations": ["May use standard pyserial logic."],
+        "faculty_follow_up_recommendations": ["Ask candidate how packet drops are handled."],
+        "innovation_strengths": ["Robust serialization."],
+        "missing_evidence": ["No load testing documentation found."],
+        "improvement_recommendations": ["Add automated load simulation benchmarks."],
+        "confidence_classification": "Directly Verified",
+        "confidence_rationale": "Code implementation directly matches documentation.",
+        "limitations": []
+    }
+
+    mock_resp = SimpleNamespace(text=json.dumps(mock_payload))
+    client.gemini_client = SimpleNamespace(
+        models=SimpleNamespace(
+            generate_content=lambda **kwargs: mock_resp
+        )
+    )
+
+    interp = client.interpret_innovation(
+        user_prompt="Sample prompt",
+        valid_evidence_ids=["FEAT-1"],
+        discard_invalid_references=True
+    )
+
+    assert interp.interpretation_status == "completed"
+    assert "Distinctive approach" in interp.innovation_summary
+    assert len(interp.innovation_strengths) == 1
+    assert interp.confidence_classification == "Directly Verified"
+
+

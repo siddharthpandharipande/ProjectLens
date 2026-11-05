@@ -637,3 +637,268 @@ def test_nonexistent_project_returns_404(client: TestClient):
 
     get_res = client.get("/api/projects/nonexistent-999/ai-assistance")
     assert get_res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 6. Phase 9 Gemini & Deterministic 10-Area Fallback Tests
+# ---------------------------------------------------------------------------
+
+
+def test_ai_assistance_deterministic_fallback_populates_10_areas(client: TestClient, valid_zip_bytes: bytes, monkeypatch):
+    """Verify that structuredInterpretation.findings contains 10 structured areas on fallback."""
+    monkeypatch.setattr(settings, "LLM_ENABLED", False)
+    project_id = _upload(client, valid_zip_bytes)
+
+    response = client.post(f"/api/projects/{project_id}/analyze/ai-assistance")
+    assert response.status_code == 200
+    data = response.json()
+
+    interp = data.get("structuredInterpretation") or {}
+    findings = interp.get("findings") or []
+    assert len(findings) == 10
+
+    categories = [f.get("category") for f in findings]
+    assert any("Overview" in c for c in categories)
+    assert any("Architecture" in c for c in categories)
+    assert any("Code Quality" in c for c in categories)
+    assert any("Testing" in c for c in categories)
+    assert any("Security" in c for c in categories)
+    assert any("Viva" in c for c in categories)
+
+    for f in findings:
+        assert f.get("title")
+        assert f.get("description")
+        assert f.get("priority") in ("Critical", "High", "Medium", "Low", "Informational")
+        assert f.get("why_it_matters") or f.get("whyItMatters")
+        assert f.get("recommended_action") or f.get("recommendedAction")
+
+
+def test_gemini_client_evidence_interpretation_mock(monkeypatch):
+    """Verify OpenRouterClient._interpret_evidence_gemini parses valid response."""
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "gemini")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "mock-key")
+    monkeypatch.setattr(settings, "LLM_ENABLED", True)
+
+    client = OpenRouterClient.__new__(OpenRouterClient)
+    client.enabled = True
+    client.is_gemini = True
+
+    gemini_resp_payload = {
+        "interpretation_status": "completed",
+        "executive_summary": "Clean Python project with solid structure.",
+        "explanation_of_patterns": "Observed standard MVC architecture with deterministic signals.",
+        "evidence_references": [{"signal_id": "sig-1", "observation": "Observed 12 functions."}],
+        "alternative_explanations": ["May reflect standard starter code."],
+        "faculty_follow_up_recommendations": ["Ask student about design choices."],
+        "limitations": [],
+        "fact_vs_interpretation": {
+            "facts": ["12 functions found."],
+            "interpretation": ["Standard complexity."],
+            "speculation": []
+        },
+        "findings": [
+            {
+                "title": "Architecture Separation",
+                "description": "Layered design with clear controllers.",
+                "category": "Architecture",
+                "priority": "Medium",
+                "why_it_matters": "Improves testability.",
+                "supporting_evidence": "Controller modules present.",
+                "recommended_action": "Add unit tests.",
+                "expected_benefit": "Higher reliability.",
+                "source_reference": "controllers.py"
+            }
+        ]
+    }
+
+    mock_model_resp = SimpleNamespace(text=json.dumps(gemini_resp_payload))
+    client.gemini_client = SimpleNamespace(
+        models=SimpleNamespace(
+            generate_content=lambda **kwargs: mock_model_resp
+        )
+    )
+
+    evidence = EvidenceSummary(
+        project_id="p-gemini-test",
+        rules_version="v1",
+        signals=[
+            EvidenceSignal(
+                signal_id="sig-1",
+                category="code_quality",
+                source="test",
+                observed_value="12 functions",
+                explanation="12 functions found.",
+                availability_status="available",
+            )
+        ]
+    )
+
+    result = client.interpret_evidence(evidence, ["sig-1"])
+    assert result.interpretation_status == InterpretationStatus.COMPLETED
+    assert "Clean Python project" in result.executive_summary
+    assert len(result.findings) == 1
+    assert result.findings[0].title == "Architecture Separation"
+
+
+def test_ai_assistance_deterministic_findings_handles_dict_frameworks_and_missing_metrics(
+    db_session: Session,
+):
+    """Verify that deterministic findings generation handles dict frameworks and null metrics without crashing."""
+    from app.models.project import Project, ProjectStructure, ProjectFile
+    from app.models.code_quality import ProjectQualityAnalysis
+    from app.models.documentation import ProjectDocumentationAnalysis
+    from app.services.ai_assistance.service import AIAssistanceService
+
+    project = Project(
+        id="proj_dict_fw_test",
+        title="Dict Framework Test Project",
+        archive_filename="test.zip",
+        archive_path="/fake/test.zip",
+        file_size_bytes=1024,
+    )
+    db_session.add(project)
+    db_session.flush()
+
+    structure = ProjectStructure(
+        project_id=project.id,
+        total_files=5,
+        source_files_count=3,
+        total_source_size_bytes=1000,
+        languages={"Python": {"files": 3}},
+        frameworks=[
+            {"name": "FastAPI", "category": "Web Framework"},
+            {"name": "React", "category": "Frontend UI"},
+        ],
+    )
+    db_session.add(structure)
+
+    # Add file with and without relative_path
+    f1 = ProjectFile(
+        project_id=project.id,
+        relative_path="src/main.py",
+        filename="main.py",
+        extension=".py",
+        size_bytes=500,
+        category="source",
+    )
+    f2 = ProjectFile(
+        project_id=project.id,
+        relative_path="docs/untracked.txt",
+        filename="untracked.txt",
+        extension=".txt",
+        size_bytes=100,
+        category="documentation",
+    )
+    db_session.add_all([f1, f2])
+
+    # Quality analysis with None complexity
+    quality = ProjectQualityAnalysis(
+        project_id=project.id,
+        status="completed",
+        score=75.0,
+        metrics_summary={"total_source_files": 2},
+    )
+    db_session.add(quality)
+
+    # Documentation analysis with None total_words
+    docs = ProjectDocumentationAnalysis(
+        project_id=project.id,
+        status="completed",
+        total_documents_count=1,
+        total_words_count=None,
+        recognized_sections_count=2,
+    )
+    db_session.add(docs)
+    db_session.commit()
+
+    # Generate deterministic findings
+    findings = AIAssistanceService._build_deterministic_findings(
+        db=db_session,
+        project_id=project.id,
+        signals=[],
+        advisory_category="Sufficient Evidence",
+    )
+
+    assert len(findings) == 10
+    categories = [f["category"] for f in findings]
+    assert "Project Overview and Understanding" in categories
+    assert "Technology Stack and Dependencies" in categories
+    assert "Code Quality and Maintainability" in categories
+
+    # Verify frameworks string was correctly extracted
+    fw_finding = next(f for f in findings if f["category"] == "Technology Stack and Dependencies")
+    assert "FastAPI" in fw_finding["description"]
+    assert "React" in fw_finding["description"]
+
+
+def test_evidence_collector_isolates_individual_collector_failure(
+    db_session: Session, monkeypatch
+):
+    """Verify that an exception in one collector does not crash collect_all and reports an error signal."""
+    project = Project(
+        id="proj_collector_fail_test",
+        title="Collector Failure Test",
+        archive_filename="test.zip",
+        archive_path="/fake/test.zip",
+        file_size_bytes=512,
+    )
+    db_session.add(project)
+    db_session.commit()
+
+    # Monkeypatch collect_code_quality to raise an exception
+    def _buggy_collector(*args, **kwargs):
+        raise RuntimeError("Simulated AST parser crash")
+
+    monkeypatch.setattr(EvidenceCollector, "collect_code_quality", _buggy_collector)
+
+    signals = EvidenceCollector.collect_all(db_session, project.id)
+    assert len(signals) > 0
+
+    # Verify an unavailable signal was emitted for code_quality
+    cq_error = next((s for s in signals if s["signal_id"] == "code_quality-error"), None)
+    assert cq_error is not None
+    assert cq_error["availability_status"] == "unavailable"
+    assert "RuntimeError" in cq_error["explanation"]
+
+
+def test_llm_interpretation_normalizes_string_lists_and_status_variants():
+    """Verify that LLMInterpretation schema safely accepts strings for list fields and normalizes status."""
+    payload = {
+        "interpretation_status": "Complete",
+        "executive_summary": "Solid student project with clear boundaries.",
+        "explanation_of_patterns": "Structured into frontend and backend folders.",
+        "alternative_explanations": "Single string explanation rather than list.",
+        "faculty_follow_up_recommendations": "Single follow up question.",
+        "limitations": "Single limitation note.",
+        "fact_vs_interpretation": {
+            "facts": "Fact 1\nFact 2",
+            "interpretation": "Single interpretation",
+            "speculation": None
+        },
+        "findings": [
+            {
+                "title": "API Organization",
+                "description": "Good structure",
+                "category": "Architecture",
+                "priority": "Medium",
+                "whyItMatters": ["Important for maintenance"],
+                "supportingEvidence": {"file": "routes.py"},
+                "recommendedAction": "Keep organizing",
+                "expectedBenefit": "Readability",
+            }
+        ]
+    }
+
+    parsed = LLMInterpretation.model_validate(payload)
+    assert parsed.interpretation_status == InterpretationStatus.COMPLETED
+    assert parsed.alternative_explanations == ["Single string explanation rather than list."]
+    assert parsed.faculty_follow_up_recommendations == ["Single follow up question."]
+    assert parsed.limitations == ["Single limitation note."]
+    assert parsed.fact_vs_interpretation.facts == ["Fact 1", "Fact 2"]
+    assert parsed.fact_vs_interpretation.interpretation == ["Single interpretation"]
+    assert parsed.fact_vs_interpretation.speculation == []
+    assert len(parsed.findings) == 1
+    assert parsed.findings[0].why_it_matters == "Important for maintenance"
+    assert parsed.findings[0].supporting_evidence == "routes.py"
+
+

@@ -6,8 +6,11 @@ analysis has completed; missing results are recorded as "unavailable" rather
 than fabricated. No source code, personal identifiers, or secrets are included.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models.project import Project
 from app.models.code_quality import ProjectQualityAnalysis, ProjectFileMetric
@@ -77,12 +80,33 @@ class EvidenceCollector:
 
     @classmethod
     def collect_all(cls, db: Session, project_id: str) -> List[Dict[str, Any]]:
-        """Collect all available evidence signals for a project."""
+        """Collect all available evidence signals for a project, isolating collector failures."""
         signals: List[Dict[str, Any]] = []
-        signals.extend(cls.collect_code_quality(db, project_id))
-        signals.extend(cls.collect_similarity(db, project_id))
-        signals.extend(cls.collect_documentation(db, project_id))
-        signals.extend(cls.collect_git_history(db, project_id))
+        collectors = [
+            ("code_quality", cls.collect_code_quality, "project_quality_analyses"),
+            ("similarity", cls.collect_similarity, "project_similarity_analyses"),
+            ("documentation", cls.collect_documentation, "project_documentation_analyses"),
+            ("git_history", cls.collect_git_history, "project_git_history_analyses"),
+        ]
+        for category, collector, source_table in collectors:
+            try:
+                signals.extend(collector(db, project_id))
+            except Exception as exc:
+                logger.warning(
+                    "Evidence collector for '%s' failed on project '%s': %s",
+                    category,
+                    project_id,
+                    exc,
+                    exc_info=True,
+                )
+                signals.append(
+                    _unavailable_signal(
+                        signal_id=f"{category}-error",
+                        category=category,
+                        source=source_table,
+                        reason=f"Evidence collection for {category} encountered an error: {type(exc).__name__}.",
+                    )
+                )
         return signals
 
     # ------------------------------------------------------------------

@@ -52,13 +52,16 @@ def build_user_prompt(evidence: EvidenceSummary) -> str:
         if sig.confidence is not None:
             lines.append(f"      confidence: {sig.confidence}")
         if sig.alternative_explanations:
-            lines.append(f"      alternative explanations: {'; '.join(sig.alternative_explanations)}")
+            clean_alts = [str(e).strip() for e in sig.alternative_explanations if e and str(e).strip()]
+            if clean_alts:
+                lines.append(f"      alternative explanations: {'; '.join(clean_alts)}")
     lines.append("")
     lines.append(
         "TASK: Interpret the signals above. Return a JSON object with keys: "
         "interpretation_status, executive_summary, explanation_of_patterns, "
         "evidence_references (list of {signal_id, observation}), "
         "alternative_explanations, faculty_follow_up_recommendations, "
-        "limitations, fact_vs_interpretation ({facts, interpretation, speculation})."
+        "limitations, fact_vs_interpretation ({facts, interpretation, speculation}), "
+        "findings (list of {title, description, category, priority, whyItMatters, supportingEvidence, recommendedAction, expectedBenefit, sourceReference})."
     )
     return "\n".join(lines)

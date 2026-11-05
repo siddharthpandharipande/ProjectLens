@@ -26,8 +26,11 @@ from app.services.llm.schemas import (
     EvidenceSummary,
     EvidenceReference,
     FactVsInterpretation,
+    AIAssistanceFinding,
     LLMInterpretation,
     InterpretationStatus,
+    InnovationEvidenceReference,
+    LLMInnovationInterpretation,
 )
 
 __all__ = [
@@ -49,6 +52,9 @@ __all__ = [
     "EvidenceSummary",
     "EvidenceReference",
     "FactVsInterpretation",
+    "AIAssistanceFinding",
     "LLMInterpretation",
     "InterpretationStatus",
+    "InnovationEvidenceReference",
+    "LLMInnovationInterpretation",
 ]

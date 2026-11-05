@@ -12,7 +12,7 @@ class FeatureEvidenceSchema(BaseModel):
         ...,
         description=(
             "One of: 'verified_match', 'documented_feature', "
-            "'detected_implementation', 'unverified_claim', 'insufficient_information'"
+            "'detected_implementation', 'unverified_claim', 'insufficient_information', 'proposed_future'"
         ),
     )
     doc_reference: Optional[str] = None
@@ -101,6 +101,8 @@ class InnovationAnalysisResponse(BaseModel):
     comparison_method: str = Field("tfidf_cosine", alias="comparisonMethod")
     matches: List[InnovationMatchSchema] = Field(default_factory=list)
     dimension_scores: Dict[str, Any] = Field(default_factory=dict, alias="dimensionScores")
+    confidence_classification: Optional[str] = Field(None, alias="confidenceClassification")
+    confidence_rationale: Optional[str] = Field(None, alias="confidenceRationale")
     limitations: List[str] = Field(default_factory=list)
     rules_version: str = Field("v1.0-deterministic-rubric", alias="rulesVersion")
     llm_provider: Optional[str] = Field(None, alias="llmProvider")
