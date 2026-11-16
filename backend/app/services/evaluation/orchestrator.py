@@ -109,8 +109,9 @@ class EvaluationOrchestrator:
             else:
                 weaknesses.append(f"Code maintainability score is {cq.score:.1f}/100 with identified refactoring opportunities.")
             metrics = cq.metrics_summary or {}
-            if metrics.get("avg_complexity", 0) > 10.0:
-                risks.append(f"High average cyclomatic complexity ({metrics.get('avg_complexity'):.1f}) elevates defect risk.")
+            avg_cc = metrics.get("avg_complexity")
+            if avg_cc is not None and avg_cc > 10.0:
+                risks.append(f"High average cyclomatic complexity ({avg_cc:.1f}) elevates defect risk.")
 
         # Category 2: Originality & Similarity Screening (15%)
         sim_schema = cls._assess_similarity(sim)
@@ -130,7 +131,8 @@ class EvaluationOrchestrator:
         module_statuses["documentation"] = "completed" if doc else "not_started"
         if doc and doc.preliminary_score is not None:
             if doc.preliminary_score >= 70.0:
-                strengths.append(f"Comprehensive documentation: score {doc.preliminary_score:.1f}/100 across {doc.recognized_sections_count} sections.")
+                sec_count = doc.recognized_sections_count if doc.recognized_sections_count is not None else 0
+                strengths.append(f"Comprehensive documentation: score {doc.preliminary_score:.1f}/100 across {sec_count} sections.")
             else:
                 weaknesses.append("Documentation coverage is incomplete or missing standard architectural specifications.")
 
@@ -141,7 +143,9 @@ class EvaluationOrchestrator:
             "completed" if (git_hist and git_hist.availability == "available") else ("unavailable" if git_hist else "not_started")
         )
         if git_hist and git_hist.availability == "available":
-            strengths.append(f"Active version control history: {git_hist.total_commits} commits over {git_hist.duration_days:.1f} days.")
+            commits = git_hist.total_commits if git_hist.total_commits is not None else 0
+            days = git_hist.duration_days if git_hist.duration_days is not None else 0.0
+            strengths.append(f"Active version control history: {commits} commits over {days:.1f} days.")
         else:
             weaknesses.append("No readable Git repository history discovered in archive submission.")
 
