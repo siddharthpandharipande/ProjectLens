@@ -52,8 +52,14 @@ class ProjectService:
         projects = db.query(Project).order_by(Project.created_at.desc()).all()
 
         total = len(projects)
-        completed = sum(1 for p in projects if p.status == ProjectStatus.COMPLETED.value)
-        processing = sum(1 for p in projects if p.status == ProjectStatus.PROCESSING.value)
+        completed = sum(
+            1 for p in projects
+            if p.status == ProjectStatus.COMPLETED.value or p.score is not None
+        )
+        processing = sum(
+            1 for p in projects
+            if p.status == ProjectStatus.PROCESSING.value and p.score is None
+        )
         flagged = sum(1 for p in projects if p.status == ProjectStatus.FLAGGED.value)
 
         stats = DashboardStats(

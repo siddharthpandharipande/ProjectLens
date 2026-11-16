@@ -102,9 +102,11 @@ class EvaluationService:
             )
             db.add(eval_record)
 
-        # 4. Update Project.score for global header and project card display
+        # 4. Update Project.score and status for global header and project card display
         if overall_score is not None:
             project.score = overall_score
+            project.status = "completed"
+            project.processing_stage = "Evaluation completed"
         db.commit()
         db.refresh(eval_record)
         db.refresh(project)
